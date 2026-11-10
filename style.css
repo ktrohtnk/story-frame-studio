@@ -1373,8 +1373,7 @@ input[type="color"]::-webkit-color-swatch {
   }
 
   #pane-filters .pane-title,
-  #pane-filters .section-divider,
-  #pane-filters .lut-import-box {
+  #pane-filters .section-divider {
     display: none;
   }
 

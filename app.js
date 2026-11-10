@@ -36,6 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
     grainSize: 2,
     vignette: 0,
     isRisograph: false,
+    xmpProfile: null,
+    cubeLUT: null,
+    profileId: 0,
     
     // Frame Customizations
     margin: 80,
@@ -526,7 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return off;
   }
 
-  // --- Lightroom / Instagram-Grade Filmic Tone & Color Grading Engine (Zero Highlight Clipping) ---
+  // --- Lightroom / Instagram-Grade Filmic Tone & Color Grading Engine (Zero Highlight Clipping + Full XMP/LUT) ---
   const gradedPhotoCache = {
     img: null,
     w: 0,
@@ -536,6 +539,223 @@ document.addEventListener('DOMContentLoaded', () => {
     outCanvas: null,
     gradeKey: ''
   };
+
+  // Monotone Cubic Hermite Spline (Fritsch-Carlson) for Lightroom ToneCurvePV2012
+  function buildMonotoneCubicLUT(points) {
+    if (!points || points.length === 0) return null;
+    const lut = new Float32Array(256);
+    const pts = points.slice().sort((a, b) => a[0] - b[0]);
+    if (pts.length === 1) {
+      const val = Math.max(0, Math.min(255, pts[0][1]));
+      for (let i = 0; i < 256; i++) lut[i] = val;
+      return lut;
+    }
+    const n = pts.length;
+    const xs = pts.map(p => p[0]);
+    const ys = pts.map(p => p[1]);
+
+    const d = new Float32Array(n - 1);
+    const dx = new Float32Array(n - 1);
+    for (let i = 0; i < n - 1; i++) {
+      dx[i] = Math.max(1e-4, xs[i + 1] - xs[i]);
+      d[i] = (ys[i + 1] - ys[i]) / dx[i];
+    }
+
+    const m = new Float32Array(n);
+    m[0] = d[0];
+    m[n - 1] = d[n - 2];
+    for (let i = 1; i < n - 1; i++) {
+      if (d[i - 1] * d[i] <= 0) {
+        m[i] = 0;
+      } else {
+        m[i] = (d[i - 1] + d[i]) * 0.5;
+      }
+    }
+    for (let i = 0; i < n - 1; i++) {
+      if (Math.abs(d[i]) < 1e-5) {
+        m[i] = 0;
+        m[i + 1] = 0;
+      } else {
+        const a = m[i] / d[i];
+        const b = m[i + 1] / d[i];
+        const h = Math.hypot(a, b);
+        if (h > 3) {
+          const t = 3 / h;
+          m[i] = t * a * d[i];
+          m[i + 1] = t * b * d[i];
+        }
+      }
+    }
+
+    let seg = 0;
+    for (let x = 0; x < 256; x++) {
+      if (x <= xs[0]) {
+        lut[x] = Math.max(0, Math.min(255, ys[0]));
+        continue;
+      }
+      if (x >= xs[n - 1]) {
+        lut[x] = Math.max(0, Math.min(255, ys[n - 1]));
+        continue;
+      }
+      while (seg < n - 2 && x > xs[seg + 1]) seg++;
+      const h = dx[seg];
+      const t = (x - xs[seg]) / h;
+      const t2 = t * t;
+      const t3 = t2 * t;
+      const h00 = 2 * t3 - 3 * t2 + 1;
+      const h10 = t3 - 2 * t2 + t;
+      const h01 = -2 * t3 + 3 * t2;
+      const h11 = t3 - t2;
+      const y = h00 * ys[seg] + h10 * h * m[seg] + h01 * ys[seg + 1] + h11 * h * m[seg + 1];
+      lut[x] = Math.max(0, Math.min(255, y));
+    }
+    return lut;
+  }
+
+  // 8-Band HSL (Red, Orange, Yellow, Green, Aqua, Blue, Purple, Magenta) Lookup Tables (0..359 deg)
+  const HSL_BAND_CENTERS = [0, 30, 60, 120, 180, 240, 275, 315, 360];
+  const HSL_BAND_NAMES = ['Red', 'Orange', 'Yellow', 'Green', 'Aqua', 'Blue', 'Purple', 'Magenta', 'Red'];
+
+  function buildHSLTables(hsl) {
+    if (!hsl) return null;
+    const hueShift = new Float32Array(360);
+    const satScale = new Float32Array(360);
+    const lumShift = new Float32Array(360);
+
+    let seg = 0;
+    for (let deg = 0; deg < 360; deg++) {
+      while (seg < 7 && deg >= HSL_BAND_CENTERS[seg + 1]) seg++;
+      const c0 = HSL_BAND_CENTERS[seg];
+      const c1 = HSL_BAND_CENTERS[seg + 1];
+      const n0 = HSL_BAND_NAMES[seg];
+      const n1 = HSL_BAND_NAMES[seg + 1];
+      const t = (deg - c0) / (c1 - c0);
+      const w1 = 0.5 - 0.5 * Math.cos(Math.PI * t);
+      const w0 = 1 - w1;
+
+      const hVal = (hsl.hue[n0] || 0) * w0 + (hsl.hue[n1] || 0) * w1;
+      hueShift[deg] = hVal * 0.36;
+
+      const sVal = (hsl.sat[n0] || 0) * w0 + (hsl.sat[n1] || 0) * w1;
+      satScale[deg] = Math.max(0, 1 + sVal / 100);
+
+      const lVal = (hsl.lum[n0] || 0) * w0 + (hsl.lum[n1] || 0) * w1;
+      lumShift[deg] = lVal / 100;
+    }
+    return { hueShift, satScale, lumShift };
+  }
+
+  // Convert Hue (0..360) and Sat (0..100) to Luma-Neutral RGB Tint Vector
+  function hueSatToChromaRGB(hueDeg, satPct) {
+    if (!satPct || satPct <= 0) return [0, 0, 0];
+    const h = ((hueDeg % 360) + 360) % 360;
+    const x = 1 - Math.abs(((h / 60) % 2) - 1);
+    let r = 0, g = 0, b = 0;
+    if (h < 60) { r = 1; g = x; b = 0; }
+    else if (h < 120) { r = x; g = 1; b = 0; }
+    else if (h < 180) { r = 0; g = 1; b = x; }
+    else if (h < 240) { r = 0; g = x; b = 1; }
+    else if (h < 300) { r = x; g = 0; b = 1; }
+    else { r = 1; g = 0; b = x; }
+
+    // Subtract Rec.709 luma so tint is pure chromaticity without unintended brightness jump
+    const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    const strength = (satPct / 100) * 62;
+    return [
+      (r - y) * strength,
+      (g - y) * strength,
+      (b - y) * strength
+    ];
+  }
+
+  // 3-Way Color Grading Wheels (Shadows / Midtones / Highlights / Global) + Split Toning Balance/Blending
+  function buildColorGradingTables(cg) {
+    if (!cg) return null;
+    const cgR = new Int16Array(256);
+    const cgG = new Int16Array(256);
+    const cgB = new Int16Array(256);
+    const cgLum = new Float32Array(256);
+
+    const [sR, sG, sB] = hueSatToChromaRGB(cg.shadowHue || 0, cg.shadowSat || 0);
+    const [mR, mG, mB] = hueSatToChromaRGB(cg.midtoneHue || 0, cg.midtoneSat || 0);
+    const [hR, hG, hB] = hueSatToChromaRGB(cg.highlightHue || 0, cg.highlightSat || 0);
+    const [gR, gG, gB] = hueSatToChromaRGB(cg.globalHue || 0, cg.globalSat || 0);
+
+    const sLum = (cg.shadowLum || 0) / 100;
+    const mLum = (cg.midtoneLum || 0) / 100;
+    const hLum = (cg.highlightLum || 0) / 100;
+    const gLum = (cg.globalLum || 0) / 100;
+
+    const balance = Math.max(-100, Math.min(100, cg.balance || 0)) / 100; // -1..1
+    const blending = Math.max(0, Math.min(100, cg.blending !== undefined ? cg.blending : 50)) / 100; // 0..1
+    const pivot = Math.max(0.18, Math.min(0.82, 0.5 - balance * 0.28));
+    const expPower = 1.75 - blending * 0.75;
+
+    for (let i = 0; i < 256; i++) {
+      const l = i / 255;
+      // Smooth shadow/midtone/highlight weights across luminance
+      const wShadow = l < pivot
+        ? Math.pow(1 - (l / pivot) * 0.5, expPower)
+        : Math.pow(Math.max(0, (1 - l) / (1 - pivot)) * 0.5, expPower);
+      const wHighlight = l >= pivot
+        ? Math.pow(0.5 + ((l - pivot) / (1 - pivot)) * 0.5, expPower)
+        : Math.pow((l / pivot) * 0.5, expPower);
+      const wMid = 4 * l * (1 - l);
+      // Taper slightly at pure 0 and pure 255 so black/white endpoints don't clip
+      const endpointGuard = Math.sin(Math.PI * l);
+      const wGlobal = 0.35 + 0.65 * endpointGuard;
+
+      cgR[i] = Math.round(sR * wShadow + mR * wMid + hR * wHighlight + gR * wGlobal);
+      cgG[i] = Math.round(sG * wShadow + mG * wMid + hG * wHighlight + gG * wGlobal);
+      cgB[i] = Math.round(sB * wShadow + mB * wMid + hB * wHighlight + gB * wGlobal);
+
+      cgLum[i] = (sLum * wShadow + mLum * wMid + hLum * wHighlight + gLum * wGlobal) * 0.22 * endpointGuard;
+    }
+
+    return { cgR, cgG, cgB, cgLum };
+  }
+
+  // Camera Calibration 3x3 RGB Primary Shift Matrix
+  function buildCalibrationMatrix(cal) {
+    if (!cal) return null;
+    const rH = (cal.redHue || 0) / 100;
+    const gH = (cal.greenHue || 0) / 100;
+    const bH = (cal.blueHue || 0) / 100;
+    const rS = (cal.redSat || 0) / 100;
+    const gS = (cal.greenSat || 0) / 100;
+    const bS = (cal.blueSat || 0) / 100;
+
+    // Row-normalized 3x3 matrix so neutral grays (R=G=B) remain 100% neutral!
+    // Red Hue > 0 shifts Red toward Orange/Green (+G); < 0 shifts toward Magenta (+B)
+    let r_r = 1 + rS * 0.28;
+    let r_g = rH * 0.18 - rS * 0.14;
+    let r_b = -rH * 0.18 - rS * 0.14;
+    const rSum = r_r + r_g + r_b;
+    r_r /= rSum; r_g /= rSum; r_b /= rSum;
+
+    // Green Hue > 0 shifts Green toward Cyan (+B); < 0 shifts toward Yellow (+R)
+    let g_r = -gH * 0.18 - gS * 0.14;
+    let g_g = 1 + gS * 0.28;
+    let g_b = gH * 0.18 - gS * 0.14;
+    const gSum = g_r + g_g + g_b;
+    g_r /= gSum; g_g /= gSum; g_b /= gSum;
+
+    // Blue Hue > 0 shifts Blue toward Purple/Magenta (+R); < 0 shifts toward Aqua/Cyan (+G)
+    let b_r = bH * 0.18 - bS * 0.14;
+    let b_g = -bH * 0.18 - bS * 0.14;
+    let b_b = 1 + bS * 0.28;
+    const bSum = b_r + b_g + b_b;
+    b_r /= bSum; b_g /= bSum; b_b /= bSum;
+
+    return {
+      m: [
+        Math.round(r_r * 1024), Math.round(r_g * 1024), Math.round(r_b * 1024),
+        Math.round(g_r * 1024), Math.round(g_g * 1024), Math.round(g_b * 1024),
+        Math.round(b_r * 1024), Math.round(b_g * 1024), Math.round(b_b * 1024)
+      ],
+      shadowTint: (cal.shadowTint || 0) / 100
+    };
+  }
 
   function gradePixelsFilmic(src, dst) {
     const ev = (state.exposure || 0) / 100;     // -1..1
@@ -547,6 +767,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const wm = (state.warmth || 0) / 100;       // -1..1
     const sat = (state.saturation || 0) / 100;  // -1..1
 
+    const xmp = state.xmpProfile;
+    const cube = state.cubeLUT;
+
+    const tint = xmp ? (xmp.tint || 0) / 100 : 0;
+    const vibrance = xmp ? (xmp.vibrance || 0) / 100 : 0;
+    const clarity = xmp ? (xmp.clarity || 0) / 100 : 0;
+    const dehaze = xmp ? (xmp.dehaze || 0) / 100 : 0;
+    const isGrayscale = !!(xmp && xmp.isGrayscale);
+
+    const hasCalibration = !!(xmp && xmp.calMatrix);
+    const calM = hasCalibration ? xmp.calMatrix.m : null;
+    const shadowTint = hasCalibration ? xmp.calMatrix.shadowTint : 0;
+
+    const hasHSL = !!(xmp && xmp.hslTables);
+    const hueShiftTable = hasHSL ? xmp.hslTables.hueShift : null;
+    const satScaleTable = hasHSL ? xmp.hslTables.satScale : null;
+    const lumShiftTable = hasHSL ? xmp.hslTables.lumShift : null;
+
+    const hasCG = !!(xmp && xmp.cgTables);
+    const cgR = hasCG ? xmp.cgTables.cgR : null;
+    const cgG = hasCG ? xmp.cgTables.cgG : null;
+    const cgB = hasCG ? xmp.cgTables.cgB : null;
+    const cgLum = hasCG ? xmp.cgTables.cgLum : null;
+
+    const paramCurve = xmp ? xmp.parametric : null;
+    const masterCurve = xmp && xmp.curves ? xmp.curves.master : null;
+    const redCurve = xmp && xmp.curves ? xmp.curves.red : null;
+    const greenCurve = xmp && xmp.curves ? xmp.curves.green : null;
+    const blueCurve = xmp && xmp.curves ? xmp.curves.blue : null;
+
     const lutR = new Uint8Array(256);
     const lutG = new Uint8Array(256);
     const lutB = new Uint8Array(256);
@@ -555,17 +805,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Filmic Exposure & S-Curve parameters (high-precision, smooth highlight roll-off)
     const kExp = Math.pow(2, ev * 1.35);
     const gammaExp = Math.pow(2, -ev * 0.45);
-    const alphaCont = Math.pow(2, cont * 0.72);
-    const hasLumaGain = (sh !== 0 || hl < 0);
+    const effCont = Math.max(-1, Math.min(1, cont + clarity * 0.28 + dehaze * 0.25));
+    const alphaCont = Math.pow(2, effCont * 0.72);
+    const hasLumaGain = (sh !== 0 || hl < 0 || dehaze !== 0 || hasCG);
 
     for (let i = 0; i < 256; i++) {
       const lNorm = i / 255;
 
-      // A. Luminance-Masked Shadows & Highlight Recovery (preserves exact color ratios!)
+      // A. Luminance-Masked Shadows, Highlight Recovery, Dehaze & ColorGrade Lum
       let lTarget = lNorm;
       if (sh !== 0) {
         const inv = 1 - lNorm;
-        const shMask = inv * inv * inv; // strictly targets shadows without washing out highlights
+        const shMask = inv * inv * inv;
         if (sh > 0) {
           lTarget += sh * 0.34 * shMask * Math.pow(Math.max(0.02, lNorm), 0.35);
         } else {
@@ -573,9 +824,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
       if (hl < 0) {
-        // Highlight recovery: smoothly pulls down bright tones to prevent/recover blowout
         const hlMask = lNorm * lNorm * (0.65 + 0.35 * lNorm);
         lTarget += hl * 0.32 * hlMask;
+      }
+      if (dehaze !== 0) {
+        lTarget -= dehaze * 0.18 * (1 - lNorm) * lNorm;
+      }
+      if (hasCG && cgLum) {
+        lTarget += cgLum[i];
       }
       lTarget = Math.max(0, Math.min(1, lTarget));
       lumaGain[i] = i > 0 ? Math.round((lTarget / lNorm) * 1024) : 1024;
@@ -589,7 +845,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const gamma = Math.pow(x, gammaExp);
         x = rational * 0.78 + gamma * 0.22;
         if (ev > 0) {
-          // Preserve highlight micro-contrast at upper end (200..255)
           x -= ev * 0.06 * (x * x * (1 - x));
         }
       }
@@ -602,7 +857,7 @@ document.addEventListener('DOMContentLoaded', () => {
       x = Math.max(0, Math.min(1, x));
 
       // 3. Filmic S-Curve Contrast (C1 smooth at 0.5, anchored at 0 and 1)
-      if (cont !== 0) {
+      if (effCont !== 0) {
         if (x < 0.5) {
           x = 0.5 * Math.pow(2 * x, alphaCont);
         } else {
@@ -631,27 +886,73 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
+      // 6. XMP Parametric Tone Curve (Shadows, Darks, Lights, Highlights)
+      if (paramCurve) {
+        const ps = (paramCurve.shadows || 0) / 100;
+        const pd = (paramCurve.darks || 0) / 100;
+        const pl = (paramCurve.lights || 0) / 100;
+        const ph = (paramCurve.highlights || 0) / 100;
+        const inv = 1 - x;
+        x += ps * 0.22 * (inv * inv * inv) * x;
+        x += pd * 0.25 * 4 * (inv * inv * x);
+        x += pl * 0.25 * 4 * (x * x * inv);
+        x += ph * 0.22 * (x * x * x) * inv;
+      }
+
       x = Math.max(0, Math.min(1, x));
 
-      // 6. Warmth (Planckian midtone-bell 4*x*(1-x) so pure blacks & pure whites never tint or clip)
+      // 7. Warmth (Temperature) & Tint (Green-Magenta) + ShadowTint
       const bell = 4 * x * (1 - x);
-      const rWarm = Math.max(0, Math.min(1, x + wm * 0.11 * bell));
-      const gWarm = Math.max(0, Math.min(1, x + wm * 0.025 * bell));
-      const bWarm = Math.max(0, Math.min(1, x - wm * 0.11 * bell));
+      const shBell = (1 - x) * (1 - x) * 4 * x;
+      let rF = Math.max(0, Math.min(1, x + wm * 0.11 * bell + tint * 0.05 * bell + shadowTint * 0.08 * shBell));
+      let gF = Math.max(0, Math.min(1, x + wm * 0.025 * bell - tint * 0.08 * bell - shadowTint * 0.08 * shBell));
+      let bF = Math.max(0, Math.min(1, x - wm * 0.11 * bell + tint * 0.05 * bell));
 
-      lutR[i] = Math.round(rWarm * 255);
-      lutG[i] = Math.round(gWarm * 255);
-      lutB[i] = Math.round(bWarm * 255);
+      let r255 = rF * 255;
+      let g255 = gF * 255;
+      let b255 = bF * 255;
+
+      // 8. XMP Point Tone Curves (Master ToneCurvePV2012 + Red / Green / Blue Channel Curves)
+      if (masterCurve) {
+        r255 = masterCurve[Math.min(255, Math.max(0, Math.round(r255)))];
+        g255 = masterCurve[Math.min(255, Math.max(0, Math.round(g255)))];
+        b255 = masterCurve[Math.min(255, Math.max(0, Math.round(b255)))];
+      }
+      if (redCurve) {
+        r255 = redCurve[Math.min(255, Math.max(0, Math.round(r255)))];
+      }
+      if (greenCurve) {
+        g255 = greenCurve[Math.min(255, Math.max(0, Math.round(g255)))];
+      }
+      if (blueCurve) {
+        b255 = blueCurve[Math.min(255, Math.max(0, Math.round(b255)))];
+      }
+
+      lutR[i] = Math.min(255, Math.max(0, Math.round(r255)));
+      lutG[i] = Math.min(255, Math.max(0, Math.round(g255)));
+      lutB[i] = Math.min(255, Math.max(0, Math.round(b255)));
     }
 
     const len = src.length;
-    const satInt = Math.round(sat * 256);
+    const satInt = isGrayscale ? -256 : Math.round(sat * 256);
+    const vibInt = isGrayscale ? 0 : Math.round(vibrance * 256);
 
     for (let i = 0; i < len; i += 4) {
       let r = src[i];
       let g = src[i + 1];
       let b = src[i + 2];
 
+      // 1. Camera Calibration (3x3 Primary RGB Shift)
+      if (hasCalibration) {
+        const nr = (r * calM[0] + g * calM[1] + b * calM[2]) >> 10;
+        const ng = (r * calM[3] + g * calM[4] + b * calM[5]) >> 10;
+        const nb = (r * calM[6] + g * calM[7] + b * calM[8]) >> 10;
+        r = nr < 0 ? 0 : (nr > 255 ? 255 : nr);
+        g = ng < 0 ? 0 : (ng > 255 ? 255 : ng);
+        b = nb < 0 ? 0 : (nb > 255 ? 255 : nb);
+      }
+
+      // 2. Luminance-Masked Shadows / Highlight Recovery
       if (hasLumaGain) {
         const lIn = (54 * r + 183 * g + 19 * b) >> 8;
         const gain = lumaGain[lIn];
@@ -665,26 +966,144 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
+      // 3. 8-Band HSL / Color Mixer (Hue, Saturation, Luminance per color band)
+      if (hasHSL && !isGrayscale) {
+        const maxC = r > g ? (r > b ? r : b) : (g > b ? g : b);
+        const minC = r < g ? (r < b ? r : b) : (g < b ? g : b);
+        const delta = maxC - minC;
+        if (delta >= 3) {
+          let h;
+          if (maxC === r) {
+            h = 60 * (((g - b) / delta) % 6);
+          } else if (maxC === g) {
+            h = 60 * ((b - r) / delta + 2);
+          } else {
+            h = 60 * ((r - g) / delta + 4);
+          }
+          if (h < 0) h += 360;
+          const hIdx = h >= 360 ? 0 : (h | 0);
+
+          const dH = hueShiftTable[hIdx];
+          const sMult = satScaleTable[hIdx];
+          const dL = lumShiftTable[hIdx];
+
+          if (dH !== 0 || sMult !== 1 || dL !== 0) {
+            let newH = (h + dH) % 360;
+            if (newH < 0) newH += 360;
+
+            let l = (maxC + minC) / 510;
+            const denom = 1 - Math.abs(2 * l - 1);
+            let s = denom > 1e-4 ? (delta / (255 * denom)) : 0;
+            s = Math.max(0, Math.min(1, s * sMult));
+
+            if (dL !== 0) {
+              const satWeight = Math.min(1, delta / 42);
+              if (dL > 0) {
+                l += dL * satWeight * 0.42 * (1 - l);
+              } else {
+                l += dL * satWeight * 0.42 * l;
+              }
+              l = Math.max(0, Math.min(1, l));
+            }
+
+            const c = (1 - Math.abs(2 * l - 1)) * s;
+            const x = c * (1 - Math.abs(((newH / 60) % 2) - 1));
+            const m = l - c * 0.5;
+            let r1, g1, b1;
+            if (newH < 60) { r1 = c; g1 = x; b1 = 0; }
+            else if (newH < 120) { r1 = x; g1 = c; b1 = 0; }
+            else if (newH < 180) { r1 = 0; g1 = c; b1 = x; }
+            else if (newH < 240) { r1 = 0; g1 = x; b1 = c; }
+            else if (newH < 300) { r1 = x; g1 = 0; b1 = c; }
+            else { r1 = c; g1 = 0; b1 = x; }
+
+            r = Math.min(255, Math.max(0, Math.round((r1 + m) * 255)));
+            g = Math.min(255, Math.max(0, Math.round((g1 + m) * 255)));
+            b = Math.min(255, Math.max(0, Math.round((b1 + m) * 255)));
+          }
+        }
+      }
+
+      // 4. Filmic Tone + Warmth/Tint + Master & RGB Channel Tone Curves
       r = lutR[r];
       g = lutG[g];
       b = lutB[b];
 
-      if (satInt !== 0) {
-        // Rec.709 Luminance with Vibrance + Highlight Chroma Protection
+      // 5. 3-Way Color Grading Wheels (Shadows / Midtones / Highlights / Global + Split Toning)
+      if (hasCG) {
         const y = (54 * r + 183 * g + 19 * b) >> 8;
-        let sFactor = 256 + satInt;
-        if (satInt > 0) {
-          const maxC = r > g ? (r > b ? r : b) : (g > b ? g : b);
-          const minC = r < g ? (r < b ? r : b) : (g < b ? g : b);
-          const chroma = maxC - minC;
-          const vibWeight = 256 - (chroma >> 1);
+        r = Math.min(255, Math.max(0, r + cgR[y]));
+        g = Math.min(255, Math.max(0, g + cgG[y]));
+        b = Math.min(255, Math.max(0, b + cgB[y]));
+      }
+
+      // 6. Vibrance & Saturation (Rec.709 Luminance with Highlight Chroma Protection)
+      if (satInt !== 0 || vibInt !== 0) {
+        const y = (54 * r + 183 * g + 19 * b) >> 8;
+        const maxC = r > g ? (r > b ? r : b) : (g > b ? g : b);
+        const minC = r < g ? (r < b ? r : b) : (g < b ? g : b);
+        const chroma = maxC - minC;
+
+        // Vibrance boosts muted colors more than already-saturated colors
+        const vibWeight = 256 - ((chroma * 190) >> 8);
+        const vibDelta = (vibInt * vibWeight) >> 8;
+
+        let totalSat = satInt + vibDelta;
+        let sFactor = 256 + totalSat;
+        if (totalSat > 0) {
+          const satWeight = 256 - (chroma >> 1);
           const hlProt = y > 190 ? ((255 - y) * 4) : 256;
-          const prot = (vibWeight * (hlProt < 256 ? hlProt : 256)) >> 8;
-          sFactor = 256 + ((satInt * prot) >> 8);
+          const prot = (satWeight * (hlProt < 256 ? hlProt : 256)) >> 8;
+          sFactor = 256 + ((totalSat * prot) >> 8);
+        } else if (sFactor < 0) {
+          sFactor = 0;
         }
         r = y + (((r - y) * sFactor) >> 8);
         g = y + (((g - y) * sFactor) >> 8);
         b = y + (((b - y) * sFactor) >> 8);
+      }
+
+      // 7. 3D LUT (.cube) Trilinear Lookup if active
+      if (cube && cube.data && cube.size > 1) {
+        const N = cube.size;
+        const maxIdx = N - 1;
+        const rf = (Math.min(255, Math.max(0, r)) / 255) * maxIdx;
+        const gf = (Math.min(255, Math.max(0, g)) / 255) * maxIdx;
+        const bf = (Math.min(255, Math.max(0, b)) / 255) * maxIdx;
+        const r0 = Math.min(maxIdx, Math.floor(rf));
+        const g0 = Math.min(maxIdx, Math.floor(gf));
+        const b0 = Math.min(maxIdx, Math.floor(bf));
+        const r1 = Math.min(maxIdx, r0 + 1);
+        const g1 = Math.min(maxIdx, g0 + 1);
+        const b1 = Math.min(maxIdx, b0 + 1);
+        const dr = rf - r0;
+        const dg = gf - g0;
+        const db = bf - b0;
+
+        // Standard .cube layout: R changes fastest, then G, then B: idx = ((b * N + g) * N + r) * 3
+        const n2 = N * N;
+        const c000 = ((b0 * n2) + (g0 * N) + r0) * 3;
+        const c100 = ((b0 * n2) + (g0 * N) + r1) * 3;
+        const c010 = ((b0 * n2) + (g1 * N) + r0) * 3;
+        const c110 = ((b0 * n2) + (g1 * N) + r1) * 3;
+        const c001 = ((b1 * n2) + (g0 * N) + r0) * 3;
+        const c101 = ((b1 * n2) + (g0 * N) + r1) * 3;
+        const c011 = ((b1 * n2) + (g1 * N) + r0) * 3;
+        const c111 = ((b1 * n2) + (g1 * N) + r1) * 3;
+        const d = cube.data;
+
+        for (let ch = 0; ch < 3; ch++) {
+          const v00 = d[c000 + ch] * (1 - dr) + d[c100 + ch] * dr;
+          const v10 = d[c010 + ch] * (1 - dr) + d[c110 + ch] * dr;
+          const v01 = d[c001 + ch] * (1 - dr) + d[c101 + ch] * dr;
+          const v11 = d[c011 + ch] * (1 - dr) + d[c111 + ch] * dr;
+          const v0 = v00 * (1 - dg) + v10 * dg;
+          const v1 = v01 * (1 - dg) + v11 * dg;
+          const v = (v0 * (1 - db) + v1 * db) * 255;
+          if (ch === 0) r = v;
+          else if (ch === 1) g = v;
+          else b = v;
+        }
       }
 
       dst[i] = r;
@@ -705,7 +1124,9 @@ document.addEventListener('DOMContentLoaded', () => {
       state.shadows === 0 &&
       state.whites === 0 &&
       state.blacks === 0 &&
-      state.warmth === 0
+      state.warmth === 0 &&
+      !state.xmpProfile &&
+      !state.cubeLUT
     );
 
     if (isNeutralTone) {
@@ -713,7 +1134,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return img;
     }
 
-    const gradeKey = `${state.exposure}_${state.contrast}_${state.saturation}_${state.highlights}_${state.shadows}_${state.whites}_${state.blacks}_${state.warmth}`;
+    const gradeKey = `${state.exposure}_${state.contrast}_${state.saturation}_${state.highlights}_${state.shadows}_${state.whites}_${state.blacks}_${state.warmth}_p${state.profileId || 0}`;
 
     // 1. Initialize or refresh base pixel buffer when source image changes
     if (gradedPhotoCache.img !== img || !gradedPhotoCache.baseData) {
@@ -739,7 +1160,7 @@ document.addEventListener('DOMContentLoaded', () => {
       gradedPhotoCache.gradeKey = '';
     }
 
-    // 2. Recompute Filmic Tone & Color Grading only when slider parameters change
+    // 2. Recompute Filmic Tone & Color Grading only when slider parameters or XMP/LUT change
     if (gradedPhotoCache.gradeKey !== gradeKey) {
       gradePixelsFilmic(gradedPhotoCache.baseData, gradedPhotoCache.outImageData.data);
       const octx = gradedPhotoCache.outCanvas.getContext('2d');
@@ -2103,6 +2524,11 @@ document.addEventListener('DOMContentLoaded', () => {
     state.grainSize = p.grainSize || 2;
     state.vignette = p.vignette;
     state.isRisograph = !!p.isRisograph;
+    state.xmpProfile = null;
+    state.cubeLUT = null;
+    state.profileId = (state.profileId || 0) + 1;
+    if (lutStatus) lutStatus.textContent = '';
+    if (lutUpload) lutUpload.value = '';
 
     syncFilterSliders();
 
@@ -2175,7 +2601,8 @@ document.addEventListener('DOMContentLoaded', () => {
       blacks: state.blacks !== 0,
       grain: state.grain > 0,
       grainSize: (state.grainSize || 2) !== 2,
-      vignette: state.vignette > 0
+      vignette: state.vignette > 0,
+      lut: !!(state.xmpProfile || state.cubeLUT)
     };
     Object.keys(dotMap).forEach((key) => {
       const dot = document.getElementById(`dot-${key}`);
@@ -2326,78 +2753,306 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function parseAndApplyXMP(xmlText, fileName) {
+    // 1. Reset base tone state first so previous sliders don't pollute the XMP preset
+    state.exposure = 0;
+    state.contrast = 0;
+    state.saturation = 0;
+    state.highlights = 0;
+    state.shadows = 0;
+    state.whites = 0;
+    state.blacks = 0;
+    state.warmth = 0;
+    state.grain = 0;
+    state.vignette = 0;
+    state.isRisograph = false;
+    state.cubeLUT = null;
+
     let matched = 0;
-    function getAttr(attrName) {
-      const regex = new RegExp(`crs:${attrName}="([^"]+)"`, 'i');
-      const m = xmlText.match(regex);
-      return m ? parseFloat(m[1]) : null;
+    const loadedFeatures = [];
+
+    // Supports both crs:Key="val" attribute syntax and <crs:Key>val</crs:Key> element syntax
+    function getRawVal(attrName) {
+      const attrRegex = new RegExp(`(?:crs:)?${attrName}\\s*=\\s*"([^"]+)"`, 'i');
+      const m1 = xmlText.match(attrRegex);
+      if (m1) return m1[1].trim();
+      const tagRegex = new RegExp(`<(?:crs:)?${attrName}>\\s*([^<]+?)\\s*<\\/(?:crs:)?${attrName}>`, 'i');
+      const m2 = xmlText.match(tagRegex);
+      return m2 ? m2[1].trim() : null;
     }
 
-    const exp = getAttr('Exposure2012') ?? getAttr('Exposure');
+    function getNum(attrName) {
+      const raw = getRawVal(attrName);
+      if (raw === null) return null;
+      const v = parseFloat(raw);
+      return Number.isNaN(v) ? null : v;
+    }
+
+    function getCurvePoints(curveName) {
+      const blockRegex = new RegExp(`<(?:crs:)?${curveName}[\\s>][\\s\\S]*?<\\/(?:crs:)?${curveName}>`, 'i');
+      const blockMatch = xmlText.match(blockRegex);
+      if (!blockMatch) return null;
+      const liRegex = /<rdf:li>\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*<\/rdf:li>/gi;
+      const pts = [];
+      let m;
+      while ((m = liRegex.exec(blockMatch[0])) !== null) {
+        pts.push([parseFloat(m[1]), parseFloat(m[2])]);
+      }
+      if (pts.length === 0) return null;
+      // Check if curve is non-identity (not just [0,0], [255,255])
+      const isIdentity = pts.length === 2 && pts[0][0] === 0 && pts[0][1] === 0 && pts[1][0] === 255 && pts[1][1] === 255;
+      return isIdentity ? null : pts;
+    }
+
+    // --- A. Basic Tone Sliders ---
+    const exp = getNum('Exposure2012') ?? getNum('Exposure');
     if (exp !== null) {
-      state.exposure = Math.round(Math.max(-100, Math.min(100, exp * 25)));
+      state.exposure = Math.round(Math.max(-100, Math.min(100, exp * 48)));
       matched++;
     }
 
-    const cont = getAttr('Contrast2012') ?? getAttr('Contrast');
+    const cont = getNum('Contrast2012') ?? getNum('Contrast');
     if (cont !== null) {
       state.contrast = Math.round(Math.max(-100, Math.min(100, cont)));
       matched++;
     }
 
-    const hl = getAttr('Highlights2012') ?? getAttr('Highlights');
+    const hl = getNum('Highlights2012') ?? getNum('Highlights');
     if (hl !== null) {
       state.highlights = Math.round(Math.max(-100, Math.min(100, hl)));
       matched++;
     }
 
-    const sh = getAttr('Shadows2012') ?? getAttr('Shadows');
+    const sh = getNum('Shadows2012') ?? getNum('Shadows');
     if (sh !== null) {
       state.shadows = Math.round(Math.max(-100, Math.min(100, sh)));
       matched++;
     }
 
-    const wh = getAttr('Whites2012') ?? getAttr('Whites');
+    const wh = getNum('Whites2012') ?? getNum('Whites');
     if (wh !== null) {
       state.whites = Math.round(Math.max(-100, Math.min(100, wh)));
       matched++;
     }
 
-    const bl = getAttr('Blacks2012') ?? getAttr('Blacks');
+    const bl = getNum('Blacks2012') ?? getNum('Blacks');
     if (bl !== null) {
       state.blacks = Math.round(Math.max(-100, Math.min(100, bl)));
       matched++;
     }
 
-    const sat = getAttr('Saturation');
+    const sat = getNum('Saturation');
     if (sat !== null) {
       state.saturation = Math.round(Math.max(-100, Math.min(100, sat)));
       matched++;
     }
 
-    const temp = getAttr('Temperature');
-    if (temp !== null) {
-      state.warmth = Math.round(Math.max(-100, Math.min(100, (temp - 5000) / 45)));
+    // White Balance: Temperature (Kelvin or Incremental) & Tint
+    const incTemp = getNum('IncrementalTemperature');
+    const temp = getNum('Temperature');
+    if (incTemp !== null && incTemp !== 0) {
+      state.warmth = Math.round(Math.max(-100, Math.min(100, incTemp)));
+      matched++;
+    } else if (temp !== null) {
+      if (temp > 1000) {
+        state.warmth = Math.round(Math.max(-100, Math.min(100, (temp - 5200) / 42)));
+      } else {
+        state.warmth = Math.round(Math.max(-100, Math.min(100, temp)));
+      }
       matched++;
     }
 
-    const grain = getAttr('GrainAmount');
+    const incTint = getNum('IncrementalTint');
+    const rawTint = getNum('Tint');
+    const tint = (incTint !== null && incTint !== 0) ? incTint : (rawTint !== null ? rawTint : 0);
+    if (tint !== 0) matched++;
+
+    const vibrance = getNum('Vibrance') || 0;
+    if (vibrance !== 0) matched++;
+
+    const clarity = getNum('Clarity2012') ?? getNum('Clarity') ?? 0;
+    if (clarity !== 0) matched++;
+
+    const dehaze = getNum('Dehaze') || 0;
+    if (dehaze !== 0) matched++;
+
+    const isGrayscale = /^true$/i.test(getRawVal('ConvertToGrayscale') || '');
+    if (isGrayscale) matched++;
+
+    // --- B. Parametric & Point Tone Curves (Master + R/G/B) ---
+    const pShadows = getNum('ParametricShadows') || 0;
+    const pDarks = getNum('ParametricDarks') || 0;
+    const pLights = getNum('ParametricLights') || 0;
+    const pHighlights = getNum('ParametricHighlights') || 0;
+    const hasParametric = (pShadows !== 0 || pDarks !== 0 || pLights !== 0 || pHighlights !== 0);
+    if (hasParametric) {
+      matched += 4;
+      loadedFeatures.push('パラメトリックカーブ');
+    }
+
+    const masterPts = getCurvePoints('ToneCurvePV2012') || getCurvePoints('ToneCurve');
+    const redPts = getCurvePoints('ToneCurvePV2012Red') || getCurvePoints('ToneCurveRed');
+    const greenPts = getCurvePoints('ToneCurvePV2012Green') || getCurvePoints('ToneCurveGreen');
+    const bluePts = getCurvePoints('ToneCurvePV2012Blue') || getCurvePoints('ToneCurveBlue');
+
+    const curves = {
+      master: buildMonotoneCubicLUT(masterPts),
+      red: buildMonotoneCubicLUT(redPts),
+      green: buildMonotoneCubicLUT(greenPts),
+      blue: buildMonotoneCubicLUT(bluePts)
+    };
+    if (curves.master || curves.red || curves.green || curves.blue) {
+      matched += (curves.master ? 1 : 0) + (curves.red ? 1 : 0) + (curves.green ? 1 : 0) + (curves.blue ? 1 : 0);
+      loadedFeatures.push(curves.red || curves.green || curves.blue ? 'RGBトーンカーブ' : 'トーンカーブ');
+    }
+
+    // --- C. 8-Band HSL / Color Mixer ---
+    const hslColors = ['Red', 'Orange', 'Yellow', 'Green', 'Aqua', 'Blue', 'Purple', 'Magenta'];
+    const hslData = { hue: {}, sat: {}, lum: {} };
+    let hslCount = 0;
+    hslColors.forEach((col) => {
+      const h = getNum(`HueAdjustment${col}`);
+      const s = getNum(`SaturationAdjustment${col}`);
+      const l = getNum(`LuminanceAdjustment${col}`);
+      if (h !== null && h !== 0) { hslData.hue[col] = h; hslCount++; }
+      if (s !== null && s !== 0) { hslData.sat[col] = s; hslCount++; }
+      if (l !== null && l !== 0) { hslData.lum[col] = l; hslCount++; }
+    });
+    let hslTables = null;
+    if (hslCount > 0) {
+      hslTables = buildHSLTables(hslData);
+      matched += hslCount;
+      loadedFeatures.push(`HSL(${hslCount}箇所)`);
+    }
+
+    // --- D. 3-Way Color Grading Wheels & Split Toning ---
+    const cgData = {
+      shadowHue: getNum('ColorGradeShadowHue') ?? getNum('SplitToningShadowHue') ?? 0,
+      shadowSat: getNum('ColorGradeShadowSat') ?? getNum('SplitToningShadowSaturation') ?? 0,
+      shadowLum: getNum('ColorGradeShadowLum') ?? 0,
+      midtoneHue: getNum('ColorGradeMidtoneHue') ?? 0,
+      midtoneSat: getNum('ColorGradeMidtoneSat') ?? 0,
+      midtoneLum: getNum('ColorGradeMidtoneLum') ?? 0,
+      highlightHue: getNum('ColorGradeHighlightHue') ?? getNum('SplitToningHighlightHue') ?? 0,
+      highlightSat: getNum('ColorGradeHighlightSat') ?? getNum('SplitToningHighlightSaturation') ?? 0,
+      highlightLum: getNum('ColorGradeHighlightLum') ?? 0,
+      globalHue: getNum('ColorGradeGlobalHue') ?? 0,
+      globalSat: getNum('ColorGradeGlobalSat') ?? 0,
+      globalLum: getNum('ColorGradeGlobalLum') ?? 0,
+      balance: getNum('SplitToningBalance') ?? 0,
+      blending: getNum('ColorGradeBlending') ?? 50
+    };
+    const hasCG = (
+      cgData.shadowSat > 0 || cgData.midtoneSat > 0 || cgData.highlightSat > 0 || cgData.globalSat > 0 ||
+      cgData.shadowLum !== 0 || cgData.midtoneLum !== 0 || cgData.highlightLum !== 0 || cgData.globalLum !== 0
+    );
+    let cgTables = null;
+    if (hasCG) {
+      cgTables = buildColorGradingTables(cgData);
+      matched += 3;
+      loadedFeatures.push('カラーグレーディング');
+    }
+
+    // --- E. Camera Calibration (3 Primary Shifts + ShadowTint) ---
+    const calData = {
+      shadowTint: getNum('ShadowTint') || 0,
+      redHue: getNum('RedHue') || 0,
+      redSat: getNum('RedSaturation') || 0,
+      greenHue: getNum('GreenHue') || 0,
+      greenSat: getNum('GreenSaturation') || 0,
+      blueHue: getNum('BlueHue') || 0,
+      blueSat: getNum('BlueSaturation') || 0
+    };
+    const hasCal = (
+      calData.shadowTint !== 0 ||
+      calData.redHue !== 0 || calData.redSat !== 0 ||
+      calData.greenHue !== 0 || calData.greenSat !== 0 ||
+      calData.blueHue !== 0 || calData.blueSat !== 0
+    );
+    let calMatrix = null;
+    if (hasCal) {
+      calMatrix = buildCalibrationMatrix(calData);
+      matched += 3;
+      loadedFeatures.push('キャリブレーション');
+    }
+
+    // --- F. Grain & Vignette ---
+    const grain = getNum('GrainAmount');
     if (grain !== null) {
       state.grain = Math.round(Math.max(0, Math.min(100, grain)));
       matched++;
     }
+    const gSize = getNum('GrainSize');
+    if (gSize !== null && gSize > 0) {
+      state.grainSize = gSize < 20 ? 1 : (gSize < 45 ? 2 : (gSize < 75 ? 3 : 4));
+    }
+    const vig = getNum('PostCropVignetteAmount');
+    if (vig !== null && vig < 0) {
+      state.vignette = Math.round(Math.min(100, Math.abs(vig)));
+      matched++;
+    }
+
+    state.xmpProfile = {
+      tint,
+      vibrance,
+      clarity,
+      dehaze,
+      isGrayscale,
+      parametric: hasParametric ? { shadows: pShadows, darks: pDarks, lights: pLights, highlights: pHighlights } : null,
+      curves: (curves.master || curves.red || curves.green || curves.blue) ? curves : null,
+      hslTables,
+      cgTables,
+      calMatrix
+    };
+    state.profileId = (state.profileId || 0) + 1;
 
     syncFilterSliders();
     onFilterSliderManualChange();
 
-    lutStatus.textContent = `✅ Lightroomプリセット (${fileName}) を適用しました (${matched}項目)`;
+    const detailStr = loadedFeatures.length > 0 ? ` [${loadedFeatures.join(' / ')}]` : '';
+    lutStatus.textContent = `✅ ${fileName} を適用しました (${matched}項目${detailStr})`;
     lutStatus.style.color = '#10b981';
   }
 
   function parseAndApplyCube(cubeText, fileName) {
-    // 3D LUT basic header parse & tone approximation
-    lutStatus.textContent = `✅ LUTプリセット (${fileName}) を認識しました`;
-    lutStatus.style.color = '#10b981';
+    const lines = cubeText.split(/\r?\n/);
+    let size = 0;
+    const values = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line || line.startsWith('#')) continue;
+      if (line.toUpperCase().startsWith('LUT_3D_SIZE')) {
+        const parts = line.split(/\s+/);
+        size = parseInt(parts[1], 10) || 0;
+        continue;
+      }
+      if (/^[A-Za-z_]/.test(line)) continue;
+      const parts = line.split(/\s+/);
+      if (parts.length >= 3) {
+        const r = parseFloat(parts[0]);
+        const g = parseFloat(parts[1]);
+        const b = parseFloat(parts[2]);
+        if (!Number.isNaN(r) && !Number.isNaN(g) && !Number.isNaN(b)) {
+          values.push(r, g, b);
+        }
+      }
+    }
+
+    if (size > 1 && values.length >= size * size * size * 3) {
+      state.cubeLUT = {
+        size,
+        data: new Float32Array(values)
+      };
+      state.xmpProfile = null;
+      state.profileId = (state.profileId || 0) + 1;
+      syncFilterSliders();
+      onFilterSliderManualChange();
+      lutStatus.textContent = `✅ 3D LUT (${fileName}, ${size}³グリッド) を適用しました`;
+      lutStatus.style.color = '#10b981';
+    } else {
+      lutStatus.textContent = `⚠️ .cube ファイルの解析に失敗しました (${fileName})`;
+      lutStatus.style.color = '#ef4444';
+    }
   }
 
   // --- Event Listeners: Image Adjustments ---

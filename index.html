@@ -261,6 +261,11 @@
                 <span class="insta-adjust-label">周辺減光</span>
                 <span class="insta-adjust-dot" id="dot-vignette"></span>
               </button>
+              <button type="button" class="insta-adjust-btn" data-adjust-target="lut">
+                <span class="insta-adjust-icon">📂</span>
+                <span class="insta-adjust-label">XMP/LUT</span>
+                <span class="insta-adjust-dot" id="dot-lut"></span>
+              </button>
             </div>
 
             <!-- Exposure / Brightness -->
@@ -379,10 +384,10 @@
 
             <!-- Lightroom / LUT Import Section -->
             <h2 class="pane-title">外部プリセット / LUT 読み込み</h2>
-            <div class="lut-import-box">
-              <p class="lut-desc">Lightroom (.xmp) または 3D LUT (.cube) を読み込んで色味を反映できます</p>
+            <div class="control-group lut-import-box" data-adjust-group="lut">
+              <p class="lut-desc">Lightroom (.xmp) のトーンカーブ・HSL・カラーグレーディング、または 3D LUT (.cube) を完全再現します</p>
               <label for="lutUpload" class="btn btn-secondary full-width">
-                プリセット(.xmp / .cube)を選択
+                📂 プリセット(.xmp / .cube)を選択
               </label>
               <input type="file" id="lutUpload" accept=".xmp,.cube" hidden>
               <p id="lutStatus" class="lut-status"></p>
