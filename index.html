@@ -199,8 +199,72 @@
 
             <h2 class="pane-title">詳細トーン補正</h2>
 
+            <!-- Instagram風 横並び調整アイコンバー (スマホで1本ずつスライダーを表示) -->
+            <div class="insta-adjust-strip" id="instaAdjustStrip">
+              <button type="button" class="insta-adjust-btn active" data-adjust-target="exposure">
+                <span class="insta-adjust-icon">☀️</span>
+                <span class="insta-adjust-label">明るさ</span>
+                <span class="insta-adjust-dot" id="dot-exposure"></span>
+              </button>
+              <button type="button" class="insta-adjust-btn" data-adjust-target="contrast">
+                <span class="insta-adjust-icon">◐</span>
+                <span class="insta-adjust-label">コントラスト</span>
+                <span class="insta-adjust-dot" id="dot-contrast"></span>
+              </button>
+              <button type="button" class="insta-adjust-btn" data-adjust-target="saturation">
+                <span class="insta-adjust-icon">🎨</span>
+                <span class="insta-adjust-label">彩度</span>
+                <span class="insta-adjust-dot" id="dot-saturation"></span>
+              </button>
+              <button type="button" class="insta-adjust-btn" data-adjust-target="photoBlur">
+                <span class="insta-adjust-icon">💧</span>
+                <span class="insta-adjust-label">ぼかし</span>
+                <span class="insta-adjust-dot" id="dot-photoBlur"></span>
+              </button>
+              <button type="button" class="insta-adjust-btn" data-adjust-target="highlights">
+                <span class="insta-adjust-icon">✨</span>
+                <span class="insta-adjust-label">ハイライト</span>
+                <span class="insta-adjust-dot" id="dot-highlights"></span>
+              </button>
+              <button type="button" class="insta-adjust-btn" data-adjust-target="shadows">
+                <span class="insta-adjust-icon">🌑</span>
+                <span class="insta-adjust-label">シャドウ</span>
+                <span class="insta-adjust-dot" id="dot-shadows"></span>
+              </button>
+              <button type="button" class="insta-adjust-btn" data-adjust-target="warmth">
+                <span class="insta-adjust-icon">🌡️</span>
+                <span class="insta-adjust-label">色温度</span>
+                <span class="insta-adjust-dot" id="dot-warmth"></span>
+              </button>
+              <button type="button" class="insta-adjust-btn" data-adjust-target="whites">
+                <span class="insta-adjust-icon">⚪</span>
+                <span class="insta-adjust-label">白レベル</span>
+                <span class="insta-adjust-dot" id="dot-whites"></span>
+              </button>
+              <button type="button" class="insta-adjust-btn" data-adjust-target="blacks">
+                <span class="insta-adjust-icon">⚫</span>
+                <span class="insta-adjust-label">黒レベル</span>
+                <span class="insta-adjust-dot" id="dot-blacks"></span>
+              </button>
+              <button type="button" class="insta-adjust-btn" data-adjust-target="grain">
+                <span class="insta-adjust-icon">🎞️</span>
+                <span class="insta-adjust-label">粒子</span>
+                <span class="insta-adjust-dot" id="dot-grain"></span>
+              </button>
+              <button type="button" class="insta-adjust-btn" data-adjust-target="grainSize">
+                <span class="insta-adjust-icon">🔍</span>
+                <span class="insta-adjust-label">粒子サイズ</span>
+                <span class="insta-adjust-dot" id="dot-grainSize"></span>
+              </button>
+              <button type="button" class="insta-adjust-btn" data-adjust-target="vignette">
+                <span class="insta-adjust-icon">⭕</span>
+                <span class="insta-adjust-label">周辺減光</span>
+                <span class="insta-adjust-dot" id="dot-vignette"></span>
+              </button>
+            </div>
+
             <!-- Exposure / Brightness -->
-            <div class="control-group">
+            <div class="control-group mobile-adjust-active" data-adjust-group="exposure">
               <div class="label-row">
                 <label for="exposureSlider">露出 (明るさ)</label>
                 <span id="exposureVal" class="val-badge">0</span>
@@ -209,7 +273,7 @@
             </div>
 
             <!-- Contrast -->
-            <div class="control-group">
+            <div class="control-group" data-adjust-group="contrast">
               <div class="label-row">
                 <label for="contrastSlider">コントラスト</label>
                 <span id="contrastVal" class="val-badge">0</span>
@@ -217,8 +281,17 @@
               <input type="range" id="contrastSlider" min="-100" max="100" value="0">
             </div>
 
+            <!-- Photo Blur (iOS/Android完全対応ソフトガウシアンぼかし) -->
+            <div class="control-group" data-adjust-group="photoBlur">
+              <div class="label-row">
+                <label for="photoBlurSlider">写真のぼかし</label>
+                <span id="photoBlurVal" class="val-badge">0px</span>
+              </div>
+              <input type="range" id="photoBlurSlider" min="0" max="40" value="0">
+            </div>
+
             <!-- Highlights -->
-            <div class="control-group">
+            <div class="control-group" data-adjust-group="highlights">
               <div class="label-row">
                 <label for="highlightsSlider">ハイライト (明部)</label>
                 <span id="highlightsVal" class="val-badge">0</span>
@@ -227,7 +300,7 @@
             </div>
 
             <!-- Shadows -->
-            <div class="control-group">
+            <div class="control-group" data-adjust-group="shadows">
               <div class="label-row">
                 <label for="shadowsSlider">シャドウ (暗部持ち上げ)</label>
                 <span id="shadowsVal" class="val-badge">0</span>
@@ -236,7 +309,7 @@
             </div>
 
             <!-- Whites -->
-            <div class="control-group">
+            <div class="control-group" data-adjust-group="whites">
               <div class="label-row">
                 <label for="whitesSlider">白レベル (最明部)</label>
                 <span id="whitesVal" class="val-badge">0</span>
@@ -245,7 +318,7 @@
             </div>
 
             <!-- Blacks -->
-            <div class="control-group">
+            <div class="control-group" data-adjust-group="blacks">
               <div class="label-row">
                 <label for="blacksSlider">黒レベル (マット/黒浮き)</label>
                 <span id="blacksVal" class="val-badge">0</span>
@@ -254,7 +327,7 @@
             </div>
 
             <!-- Saturation -->
-            <div class="control-group">
+            <div class="control-group" data-adjust-group="saturation">
               <div class="label-row">
                 <label for="saturationSlider">彩度 (鮮やかさ)</label>
                 <span id="saturationVal" class="val-badge">0</span>
@@ -263,7 +336,7 @@
             </div>
 
             <!-- Warmth -->
-            <div class="control-group">
+            <div class="control-group" data-adjust-group="warmth">
               <div class="label-row">
                 <label for="warmthSlider">色温度 (暖かみ / 寒色)</label>
                 <span id="warmthVal" class="val-badge">0</span>
@@ -276,7 +349,7 @@
             <h2 class="pane-title">フィルム＆粒子エフェクト</h2>
 
             <!-- Film Grain -->
-            <div class="control-group">
+            <div class="control-group" data-adjust-group="grain">
               <div class="label-row">
                 <label for="grainSlider">粒子の強さ (グレイン)</label>
                 <span id="grainVal" class="val-badge">0%</span>
@@ -285,7 +358,7 @@
             </div>
 
             <!-- Grain Size / Roughness -->
-            <div class="control-group">
+            <div class="control-group" data-adjust-group="grainSize">
               <div class="label-row">
                 <label for="grainSizeSlider">粒子の粗さ (サイズ)</label>
                 <span id="grainSizeVal" class="val-badge">中 (標準)</span>
@@ -294,7 +367,7 @@
             </div>
 
             <!-- Vignette -->
-            <div class="control-group">
+            <div class="control-group" data-adjust-group="vignette">
               <div class="label-row">
                 <label for="vignetteSlider">周辺減光 (ビネット)</label>
                 <span id="vignetteVal" class="val-badge">0%</span>
@@ -319,8 +392,28 @@
           <!-- TAB 2: IMAGE ADJUSTMENT -->
           <div class="tab-pane" id="pane-image">
             <h2 class="pane-title">写真の選択・配置</h2>
+
+            <!-- Instagram風 横並び配置・背景ツールバー (スマホ用) -->
+            <div class="insta-adjust-strip" id="instaImageStrip">
+              <button type="button" class="insta-adjust-btn active" data-img-target="scale">
+                <span class="insta-adjust-icon">🔍</span>
+                <span class="insta-adjust-label">拡大・配置</span>
+              </button>
+              <button type="button" class="insta-adjust-btn" data-img-target="rotate">
+                <span class="insta-adjust-icon">🔄</span>
+                <span class="insta-adjust-label">回転</span>
+              </button>
+              <button type="button" class="insta-adjust-btn" data-img-target="blurBg">
+                <span class="insta-adjust-icon">🌫️</span>
+                <span class="insta-adjust-label">背景ぼかし</span>
+              </button>
+              <button type="button" class="insta-adjust-btn" data-img-target="bgColor">
+                <span class="insta-adjust-icon">🎨</span>
+                <span class="insta-adjust-label">背景カラー</span>
+              </button>
+            </div>
             
-            <div class="control-group">
+            <div class="control-group desktop-only-group">
               <label for="changeImageBtn" class="btn btn-accent full-width btn-large-change-photo">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                 <span>写真を選択 / 変更する</span>
@@ -328,14 +421,11 @@
               <input type="file" id="changeImageBtn" accept="image/*" hidden>
             </div>
 
-            <div class="control-group" style="margin-top: 10px;">
-              <div class="btn-group-row">
+            <div class="control-group mobile-img-active" data-img-group="scale" style="margin-top: 10px;">
+              <div class="btn-group-row" style="margin-bottom: 10px;">
                 <button id="fitImageBtn" class="btn btn-secondary flex-1" title="枠にフィット">枠にフィット</button>
                 <button id="fillImageBtn" class="btn btn-secondary flex-1" title="枠を埋める">全体を埋める</button>
               </div>
-            </div>
-
-            <div class="control-group">
               <div class="label-row">
                 <label for="scaleSlider">サイズ (拡大・縮小)</label>
                 <span id="scaleVal" class="val-badge">100%</span>
@@ -343,7 +433,7 @@
               <input type="range" id="scaleSlider" min="20" max="300" value="100">
             </div>
 
-            <div class="control-group">
+            <div class="control-group" data-img-group="rotate">
               <div class="label-row">
                 <label for="rotateSlider">回転</label>
                 <span id="rotateVal" class="val-badge">0°</span>
@@ -354,22 +444,21 @@
             <div class="section-divider"></div>
 
             <h2 class="pane-title">背景レイヤー</h2>
-            <div class="control-group">
-              <label class="checkbox-label">
+            <div class="control-group" data-img-group="blurBg">
+              <label class="checkbox-label" style="margin-bottom: 8px;">
                 <input type="checkbox" id="blurBgCheck" checked>
                 <span>背景に写真をぼかして敷く</span>
               </label>
-            </div>
-
-            <div class="control-group" id="blurAmountGroup">
-              <div class="label-row">
-                <label for="blurSlider">ぼかしの強さ</label>
-                <span id="blurVal" class="val-badge">24px</span>
+              <div id="blurAmountGroup">
+                <div class="label-row">
+                  <label for="blurSlider">ぼかしの強さ</label>
+                  <span id="blurVal" class="val-badge">28px</span>
+                </div>
+                <input type="range" id="blurSlider" min="4" max="60" value="28">
               </div>
-              <input type="range" id="blurSlider" min="4" max="60" value="24">
             </div>
 
-            <div class="control-group">
+            <div class="control-group" data-img-group="bgColor">
               <div class="label-row">
                 <label for="bgColorPicker">背景カラー (ぼかしオフ時)</label>
               </div>

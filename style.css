@@ -898,7 +898,8 @@ input[type="color"]::-webkit-color-swatch {
 .mobile-menu-btn,
 .mobile-menu-pill,
 .drawer-header,
-.sidebar-backdrop {
+.sidebar-backdrop,
+.insta-adjust-strip {
   display: none !important;
 }
 
@@ -907,7 +908,7 @@ input[type="color"]::-webkit-color-swatch {
    ======================================================== */
 @media (max-width: 860px) {
   :root {
-    --header-height: 52px;
+    --header-height: 48px;
   }
 
   html, body {
@@ -931,7 +932,7 @@ input[type="color"]::-webkit-color-swatch {
   .app-header {
     height: var(--header-height);
     min-height: var(--header-height);
-    padding: 0 12px;
+    padding: 0 10px;
     padding-top: env(safe-area-inset-top, 0px);
     display: flex;
     align-items: center;
@@ -946,22 +947,22 @@ input[type="color"]::-webkit-color-swatch {
   }
 
   .logo h1 {
-    font-size: 15px;
+    font-size: 14.5px;
     letter-spacing: -0.2px;
   }
 
   .logo-studio {
-    display: none; /* "StoryFrame" fits cleanly */
+    display: none;
   }
 
   .logo-badge {
-    font-size: 9.5px;
+    font-size: 9px;
     padding: 2px 5px;
     border-radius: 4px;
   }
 
   .header-actions {
-    gap: 8px;
+    gap: 6px;
   }
 
   /* Hide header reset button on mobile to preserve space; accessible in drawer */
@@ -970,13 +971,13 @@ input[type="color"]::-webkit-color-swatch {
   }
 
   .btn {
-    padding: 7px 12px;
-    font-size: 12px;
+    padding: 6px 10px;
+    font-size: 11.5px;
     border-radius: 6px;
   }
 
   #downloadBtn {
-    padding: 7px 14px;
+    padding: 6px 12px;
     font-weight: 600;
   }
 
@@ -993,8 +994,8 @@ input[type="color"]::-webkit-color-swatch {
     display: inline-flex !important;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     padding: 0;
     border-radius: 8px;
     background: var(--bg-card);
@@ -1012,8 +1013,11 @@ input[type="color"]::-webkit-color-swatch {
     border-color: var(--accent);
   }
 
-  /* Full-Height Preview Canvas (Mobile-First Immersive View) */
+  /* Flex Column Workspace:
+     - When Menu Closed: Preview takes 100% height!
+     - When Menu Open: Preview sits in top ~66% (100% unobstructed!) and Instagram Dock sits in bottom ~34%! */
   .app-main {
+    display: flex;
     flex-direction: column;
     height: calc(100dvh - var(--header-height));
     flex: 1;
@@ -1021,13 +1025,13 @@ input[type="color"]::-webkit-color-swatch {
     position: relative;
   }
 
-  /* Preview Section: Expands to Fill Entire Phone Screen */
+  /* Preview Section: Never covered or dimmed by sliders! */
   .preview-section {
-    flex: 1;
+    flex: 1 1 auto;
     height: 100%;
     max-height: none;
     min-height: 0;
-    padding: 6px 6px calc(8px + env(safe-area-inset-bottom, 0px)) 6px;
+    padding: 6px;
     background-color: #07080a;
     border-bottom: none;
     overflow: hidden;
@@ -1036,6 +1040,7 @@ input[type="color"]::-webkit-color-swatch {
     align-items: center;
     justify-content: center;
     position: relative;
+    transition: height 0.22s ease;
   }
 
   .preview-container {
@@ -1051,26 +1056,26 @@ input[type="color"]::-webkit-color-swatch {
   }
 
   .canvas-wrapper {
-    touch-action: none; /* Prevents viewport scroll/bounce during canvas drag */
-    border-radius: 14px;
+    touch-action: none;
+    border-radius: 12px;
     height: 100%;
     width: auto;
     max-height: 100%;
     max-width: 100%;
     aspect-ratio: 9 / 16;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.75);
   }
 
   .canvas-hints {
-    bottom: 64px;
+    bottom: 58px;
     left: 50%;
     transform: translateX(-50%);
     position: absolute;
     padding: 3px 10px;
-    font-size: 10px;
+    font-size: 9.5px;
     letter-spacing: 0.2px;
     border-radius: 12px;
-    background: rgba(14, 15, 18, 0.85);
+    background: rgba(14, 15, 18, 0.82);
     white-space: nowrap;
     z-index: 5;
     pointer-events: none;
@@ -1084,26 +1089,26 @@ input[type="color"]::-webkit-color-swatch {
     display: inline;
   }
 
-  /* Floating Bottom Menu Pill Button (On Preview) */
+  /* Floating Bottom Menu Pill Button (When Menu Closed) */
   .mobile-menu-pill {
     display: flex !important;
     align-items: center;
     gap: 8px;
     position: absolute;
-    bottom: max(14px, env(safe-area-inset-bottom, 14px));
+    bottom: max(12px, env(safe-area-inset-bottom, 12px));
     left: 50%;
     transform: translateX(-50%);
-    padding: 10px 22px;
+    padding: 9px 20px;
     background: rgba(22, 25, 32, 0.92);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.22);
     border-radius: 9999px;
     color: #ffffff;
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 600;
     letter-spacing: 0.2px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.65);
     z-index: 10;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1115,73 +1120,53 @@ input[type="color"]::-webkit-color-swatch {
     background: rgba(36, 40, 50, 0.96);
   }
 
-  /* Slide-Up Bottom Drawer Sheet for Control Sidebar */
+  /* Instagram-Style Compact Bottom Dock (Does NOT cover or dim the preview!) */
   .control-sidebar {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    display: none !important;
+    position: relative;
     width: 100%;
-    height: 75vh;
-    height: 75dvh;
-    max-height: 82vh;
+    flex: 0 0 auto;
+    height: auto;
+    max-height: 38dvh;
     min-height: 0;
-    display: flex;
     flex-direction: column;
     background-color: var(--bg-surface);
-    border-top-left-radius: 20px;
-    border-top-right-radius: 20px;
+    border-top-left-radius: 18px;
+    border-top-right-radius: 18px;
     border-top: 1px solid rgba(255, 255, 255, 0.16);
     border-left: none;
     border-bottom: none;
     border-right: none;
-    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.85);
-    z-index: 1000;
-    transform: translateY(100%);
-    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.65);
+    z-index: 50;
     overflow: hidden;
   }
 
   .control-sidebar.mobile-open {
-    transform: translateY(0);
+    display: flex !important;
   }
 
-  /* Backdrop Overlay */
+  /* Never dim or blur the photo preview when editing on mobile! */
   .sidebar-backdrop {
-    display: block !important;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.65);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    z-index: 999;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.28s ease;
+    display: none !important;
   }
 
-  .sidebar-backdrop.active {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  /* Drawer Header */
+  /* Compact Drawer Header */
   .drawer-header {
     display: flex !important;
     flex-direction: column;
-    padding: 8px 16px 10px 16px;
+    padding: 4px 12px 6px 12px;
     background: var(--bg-surface);
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     flex-shrink: 0;
-    touch-action: pan-y;
   }
 
   .drawer-handle-bar {
-    width: 36px;
-    height: 4.5px;
-    background: rgba(255, 255, 255, 0.25);
+    width: 32px;
+    height: 3.5px;
+    background: rgba(255, 255, 255, 0.22);
     border-radius: 9999px;
-    margin: 2px auto 8px auto;
+    margin: 2px auto 4px auto;
   }
 
   .drawer-header-row {
@@ -1191,12 +1176,12 @@ input[type="color"]::-webkit-color-swatch {
   }
 
   .drawer-title {
-    font-size: 14px;
+    font-size: 12.5px;
     font-weight: 700;
-    color: var(--text-primary);
+    color: var(--text-secondary);
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
   }
 
   .drawer-actions {
@@ -1205,25 +1190,20 @@ input[type="color"]::-webkit-color-swatch {
   }
 
   .drawer-close-btn {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.12);
     color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    padding: 5px 12px;
-    font-size: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    padding: 3px 11px;
+    font-size: 11.5px;
     font-weight: 600;
-    border-radius: 16px;
+    border-radius: 14px;
     cursor: pointer;
-    transition: background 0.15s ease;
-  }
-
-  .drawer-close-btn:active {
-    background: rgba(255, 255, 255, 0.2);
   }
 
   /* Horizontally Scrollable Touch Tab Bar */
   .tabs {
-    flex: 0 0 44px;
-    height: 44px;
+    flex: 0 0 38px;
+    height: 38px;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
@@ -1239,115 +1219,287 @@ input[type="color"]::-webkit-color-swatch {
 
   .tab-btn {
     flex: 1 0 auto;
-    min-width: 68px;
-    padding: 0 10px;
-    height: 44px;
+    min-width: 64px;
+    padding: 0 9px;
+    height: 38px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 600;
     white-space: nowrap;
     -webkit-tap-highlight-color: transparent;
   }
 
   .tab-btn.active::after {
-    left: 10px;
-    right: 10px;
+    left: 8px;
+    right: 8px;
     bottom: 0;
-    height: 2.5px;
+    height: 2px;
   }
 
-  /* Scrollable Content inside Bottom Sheet */
+  /* Compact Scrollable Content inside Bottom Dock */
   .tab-contents {
-    flex: 1;
+    flex: 1 1 auto;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding: 14px 14px calc(24px + env(safe-area-inset-bottom, 12px)) 14px;
+    padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 8px)) 12px;
     touch-action: pan-y;
   }
 
   .pane-title {
-    font-size: 12px;
-    margin-bottom: 12px;
+    font-size: 11.5px;
+    margin-bottom: 6px;
+  }
+
+  .section-divider {
+    margin: 8px 0;
   }
 
   .control-group {
-    margin-bottom: 16px;
+    margin-bottom: 8px;
   }
 
   .label-row {
-    font-size: 12.5px;
-    margin-bottom: 6px;
+    font-size: 12px;
+    margin-bottom: 4px;
   }
 
   .val-badge {
     font-size: 11px;
-    padding: 2px 6px;
+    padding: 1px 6px;
   }
 
   /* Mobile Sliders - Finger-Friendly Touch Hit Area */
   input[type="range"] {
-    height: 7px;
-    margin: 8px 0;
+    height: 6px;
+    margin: 6px 0;
   }
 
   input[type="range"]::-webkit-slider-thumb {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
   }
 
-  /* Mobile Preset Cards */
-  .preset-grid {
-    grid-template-columns: repeat(3, 1fr);
+  /* =========================================================
+     Instagram-Style Horizontal Tool Strips (横並びカルーセル)
+     ========================================================= */
+  .insta-adjust-strip {
+    display: flex !important;
     gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 4px 2px 6px 2px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
 
-  .preset-card {
-    padding: 8px 4px;
-    gap: 6px;
+  .insta-adjust-strip::-webkit-scrollbar {
+    display: none;
   }
 
-  .preset-thumb {
-    width: 36px;
-    height: 52px;
+  .insta-adjust-btn {
+    flex: 0 0 auto;
+    min-width: 62px;
+    padding: 6px 8px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
   }
 
-  .preset-card span {
-    font-size: 10.5px;
+  .insta-adjust-btn.active {
+    background: rgba(255, 71, 133, 0.16);
+    border-color: var(--accent);
+    color: #ffffff;
   }
 
-  /* Mobile Filter Cards */
-  .filter-presets-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 7px;
+  .insta-adjust-icon {
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .insta-adjust-label {
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .insta-adjust-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    position: absolute;
+    top: 5px;
+    right: 6px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .insta-adjust-dot.modified {
+    opacity: 1;
+  }
+
+  /* TAB 2 (Filters & Adjustments): Instagram Horizontal Layout on Mobile */
+  #pane-filters.active {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  #pane-filters .pane-header-row {
+    order: 0;
+    margin-bottom: 0;
+  }
+
+  #pane-filters .pane-title,
+  #pane-filters .section-divider,
+  #pane-filters .lut-import-box {
+    display: none;
+  }
+
+  /* Active single slider shown at top of filter dock */
+  #pane-filters .control-group[data-adjust-group] {
+    display: none !important;
+  }
+
+  #pane-filters .control-group[data-adjust-group].mobile-adjust-active {
+    display: block !important;
+    order: 1;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 6px 10px;
+    border-radius: 10px;
+    margin-bottom: 2px;
+  }
+
+  /* Horizontal adjustment icon strip in middle */
+  #pane-filters #instaAdjustStrip {
+    order: 2;
+  }
+
+  /* Horizontal filter preset cards at bottom */
+  #pane-filters .filter-presets-grid {
+    order: 3;
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 8px;
+    padding: 2px 0 4px 0;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #pane-filters .filter-presets-grid::-webkit-scrollbar {
+    display: none;
   }
 
   .filter-card {
-    padding: 6px 2px;
-    gap: 4px;
+    flex: 0 0 64px;
+    padding: 5px 4px;
+    gap: 3px;
+  }
+
+  .filter-preview {
+    width: 34px;
+    height: 34px;
   }
 
   .filter-card span {
     font-size: 9px;
+    white-space: nowrap;
   }
 
-  /* Mobile Color Pickers & Swatches */
+  /* TAB 3 (Image & Blur): Instagram Horizontal Layout on Mobile */
+  #pane-image.active {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  #pane-image .pane-title,
+  #pane-image .section-divider,
+  #pane-image .desktop-only-group {
+    display: none;
+  }
+
+  #pane-image .control-group[data-img-group] {
+    display: none !important;
+  }
+
+  #pane-image .control-group[data-img-group].mobile-img-active {
+    display: block !important;
+    order: 1;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 6px 10px;
+    border-radius: 10px;
+    margin-top: 0 !important;
+    margin-bottom: 2px;
+  }
+
+  #pane-image #instaImageStrip {
+    order: 2;
+  }
+
+  /* TAB 1 (Frame Presets): Horizontal Strip on Mobile */
+  .preset-grid {
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 8px;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .preset-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .preset-card {
+    flex: 0 0 72px;
+    padding: 6px 4px;
+    gap: 4px;
+  }
+
+  .preset-thumb {
+    width: 32px;
+    height: 46px;
+  }
+
+  .preset-card span {
+    font-size: 10px;
+  }
+
+  /* Mobile Color Pickers & Swatches (Horizontal Scrollable) */
   .preset-colors {
-    gap: 10px;
-    flex-wrap: wrap;
+    gap: 8px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
   }
 
   .color-dot {
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
     border-radius: 50%;
   }
 
   input[type="color"] {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
   }
 
   /* Mobile Segmented Controls */
@@ -1356,16 +1508,16 @@ input[type="color"]::-webkit-color-swatch {
   }
 
   .seg-btn {
-    padding: 8px 4px;
-    font-size: 11.5px;
-    min-height: 36px;
+    padding: 6px 4px;
+    font-size: 11px;
+    min-height: 30px;
   }
 
   /* Inputs - 16px font prevents iOS Auto Zoom */
   .text-input,
   .select-input {
     font-size: 16px;
-    padding: 9px 12px;
+    padding: 6px 10px;
   }
 
   /* Drop zone prompt on mobile */

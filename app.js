@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     exposure: 0,
     contrast: 0,
     saturation: 0,
+    photoBlur: 0,
     highlights: 0,
     shadows: 0,
     whites: 0,
@@ -172,6 +173,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const contrastVal = document.getElementById('contrastVal');
   const saturationSlider = document.getElementById('saturationSlider');
   const saturationVal = document.getElementById('saturationVal');
+  const photoBlurSlider = document.getElementById('photoBlurSlider');
+  const photoBlurVal = document.getElementById('photoBlurVal');
   const highlightsSlider = document.getElementById('highlightsSlider');
   const highlightsVal = document.getElementById('highlightsVal');
   const shadowsSlider = document.getElementById('shadowsSlider');
@@ -328,6 +331,243 @@ document.addEventListener('DOMContentLoaded', () => {
       isRisograph: false
     }
   };
+
+  // --- Cross-Browser Canvas Filter Support & iOS Safari Gaussian Blur Engine ---
+  const supportsCanvasFilter = (() => {
+    try {
+      const tc = document.createElement('canvas');
+      tc.width = 1;
+      tc.height = 1;
+      const tctx = tc.getContext('2d');
+      tctx.filter = 'brightness(0%)';
+      tctx.fillStyle = '#ffffff';
+      tctx.fillRect(0, 0, 1, 1);
+      const pixel = tctx.getImageData(0, 0, 1, 1).data;
+      return pixel[0] === 0;
+    } catch (e) {
+      return false;
+    }
+  })();
+
+  const bgBlurCache = { img: null, blurPx: -1, canvas: null };
+  const photoBlurCache = { img: null, blurPx: -1, canvas: null };
+
+  function boxBlurRGBA(src, dst, w, h, radius) {
+    const r = Math.min(Math.floor(radius), Math.floor((Math.min(w, h) - 1) / 2));
+    if (r < 1) {
+      dst.set(src);
+      return;
+    }
+    const iarr = 1 / (r + r + 1);
+    const tmp = new Uint8ClampedArray(src.length);
+
+    // Horizontal pass: src -> tmp
+    for (let y = 0; y < h; y++) {
+      let ti = y * w * 4;
+      let li = ti;
+      let ri = ti + r * 4;
+      const fvR = src[ti], fvG = src[ti + 1], fvB = src[ti + 2], fvA = src[ti + 3];
+      const lastInRow = ti + (w - 1) * 4;
+      const lvR = src[lastInRow], lvG = src[lastInRow + 1], lvB = src[lastInRow + 2], lvA = src[lastInRow + 3];
+      let valR = (r + 1) * fvR;
+      let valG = (r + 1) * fvG;
+      let valB = (r + 1) * fvB;
+      let valA = (r + 1) * fvA;
+
+      for (let j = 0; j < r; j++) {
+        const idx = ti + j * 4;
+        valR += src[idx];
+        valG += src[idx + 1];
+        valB += src[idx + 2];
+        valA += src[idx + 3];
+      }
+      for (let j = 0; j <= r; j++) {
+        valR += src[ri] - fvR;
+        valG += src[ri + 1] - fvG;
+        valB += src[ri + 2] - fvB;
+        valA += src[ri + 3] - fvA;
+        tmp[ti] = Math.round(valR * iarr);
+        tmp[ti + 1] = Math.round(valG * iarr);
+        tmp[ti + 2] = Math.round(valB * iarr);
+        tmp[ti + 3] = Math.round(valA * iarr);
+        ri += 4;
+        ti += 4;
+      }
+      for (let j = r + 1; j < w - r; j++) {
+        valR += src[ri] - src[li];
+        valG += src[ri + 1] - src[li + 1];
+        valB += src[ri + 2] - src[li + 2];
+        valA += src[ri + 3] - src[li + 3];
+        tmp[ti] = Math.round(valR * iarr);
+        tmp[ti + 1] = Math.round(valG * iarr);
+        tmp[ti + 2] = Math.round(valB * iarr);
+        tmp[ti + 3] = Math.round(valA * iarr);
+        li += 4;
+        ri += 4;
+        ti += 4;
+      }
+      for (let j = w - r; j < w; j++) {
+        valR += lvR - src[li];
+        valG += lvG - src[li + 1];
+        valB += lvB - src[li + 2];
+        valA += lvA - src[li + 3];
+        tmp[ti] = Math.round(valR * iarr);
+        tmp[ti + 1] = Math.round(valG * iarr);
+        tmp[ti + 2] = Math.round(valB * iarr);
+        tmp[ti + 3] = Math.round(valA * iarr);
+        li += 4;
+        ti += 4;
+      }
+    }
+
+    // Vertical pass: tmp -> dst
+    const step = w * 4;
+    for (let x = 0; x < w; x++) {
+      let ti = x * 4;
+      let li = ti;
+      let ri = ti + r * step;
+      const fvR = tmp[ti], fvG = tmp[ti + 1], fvB = tmp[ti + 2], fvA = tmp[ti + 3];
+      const lastInCol = ti + step * (h - 1);
+      const lvR = tmp[lastInCol], lvG = tmp[lastInCol + 1], lvB = tmp[lastInCol + 2], lvA = tmp[lastInCol + 3];
+      let valR = (r + 1) * fvR;
+      let valG = (r + 1) * fvG;
+      let valB = (r + 1) * fvB;
+      let valA = (r + 1) * fvA;
+
+      for (let j = 0; j < r; j++) {
+        const idx = ti + j * step;
+        valR += tmp[idx];
+        valG += tmp[idx + 1];
+        valB += tmp[idx + 2];
+        valA += tmp[idx + 3];
+      }
+      for (let j = 0; j <= r; j++) {
+        valR += tmp[ri] - fvR;
+        valG += tmp[ri + 1] - fvG;
+        valB += tmp[ri + 2] - fvB;
+        valA += tmp[ri + 3] - fvA;
+        dst[ti] = Math.round(valR * iarr);
+        dst[ti + 1] = Math.round(valG * iarr);
+        dst[ti + 2] = Math.round(valB * iarr);
+        dst[ti + 3] = Math.round(valA * iarr);
+        ri += step;
+        ti += step;
+      }
+      for (let j = r + 1; j < h - r; j++) {
+        valR += tmp[ri] - tmp[li];
+        valG += tmp[ri + 1] - tmp[li + 1];
+        valB += tmp[ri + 2] - tmp[li + 2];
+        valA += tmp[ri + 3] - tmp[li + 3];
+        dst[ti] = Math.round(valR * iarr);
+        dst[ti + 1] = Math.round(valG * iarr);
+        dst[ti + 2] = Math.round(valB * iarr);
+        dst[ti + 3] = Math.round(valA * iarr);
+        li += step;
+        ri += step;
+        ti += step;
+      }
+      for (let j = h - r; j < h; j++) {
+        valR += lvR - tmp[li];
+        valG += lvG - tmp[li + 1];
+        valB += lvB - tmp[li + 2];
+        valA += lvA - tmp[li + 3];
+        dst[ti] = Math.round(valR * iarr);
+        dst[ti + 1] = Math.round(valG * iarr);
+        dst[ti + 2] = Math.round(valB * iarr);
+        dst[ti + 3] = Math.round(valA * iarr);
+        li += step;
+        ti += step;
+      }
+    }
+  }
+
+  function getBlurredCanvas(img, blurPx, maxDim, cacheObj) {
+    if (!img || blurPx <= 0) return img;
+    if (cacheObj && cacheObj.img === img && cacheObj.blurPx === blurPx && cacheObj.canvas) {
+      return cacheObj.canvas;
+    }
+
+    const scale = Math.min(1, maxDim / Math.max(img.width || 1, img.height || 1));
+    const w = Math.max(8, Math.round(img.width * scale));
+    const h = Math.max(8, Math.round(img.height * scale));
+
+    const off = (cacheObj && cacheObj.canvas) ? cacheObj.canvas : document.createElement('canvas');
+    off.width = w;
+    off.height = h;
+    const octx = off.getContext('2d');
+    octx.clearRect(0, 0, w, h);
+    octx.drawImage(img, 0, 0, w, h);
+
+    const imgData = octx.getImageData(0, 0, w, h);
+    const data = imgData.data;
+    const buf = new Uint8ClampedArray(data.length);
+    const scaledRadius = Math.max(1, Math.round(blurPx * 0.36));
+
+    // 3-pass separable box blur approximates true Gaussian blur
+    boxBlurRGBA(data, buf, w, h, scaledRadius);
+    boxBlurRGBA(buf, data, w, h, scaledRadius);
+    boxBlurRGBA(data, buf, w, h, scaledRadius);
+
+    imgData.data.set(buf);
+    octx.putImageData(imgData, 0, 0);
+
+    if (cacheObj) {
+      cacheObj.img = img;
+      cacheObj.blurPx = blurPx;
+      cacheObj.canvas = off;
+    }
+    return off;
+  }
+
+  function applyBasicToneFallback(tctx, rx, ry, rw, rh, exposure, contrast, saturation) {
+    // 1. Exposure (Brightness)
+    if (exposure !== 0) {
+      tctx.save();
+      if (exposure > 0) {
+        const dodgeVal = Math.min(254, Math.max(0, Math.round(255 * (1 - 100 / (100 + exposure)))));
+        tctx.fillStyle = `rgb(${dodgeVal}, ${dodgeVal}, ${dodgeVal})`;
+        tctx.globalCompositeOperation = 'color-dodge';
+        tctx.fillRect(rx, ry, rw, rh);
+      } else {
+        tctx.fillStyle = '#000000';
+        tctx.globalAlpha = Math.min(1, Math.abs(exposure) / 100);
+        tctx.globalCompositeOperation = 'multiply';
+        tctx.fillRect(rx, ry, rw, rh);
+      }
+      tctx.restore();
+    }
+
+    // 2. Contrast
+    if (contrast !== 0) {
+      tctx.save();
+      if (contrast > 0) {
+        tctx.globalCompositeOperation = 'overlay';
+        tctx.globalAlpha = (contrast / 100) * 0.72;
+        tctx.drawImage(tctx.canvas, rx, ry, rw, rh, rx, ry, rw, rh);
+      } else {
+        tctx.fillStyle = '#808080';
+        tctx.globalAlpha = Math.min(1, Math.abs(contrast) / 100);
+        tctx.globalCompositeOperation = 'source-over';
+        tctx.fillRect(rx, ry, rw, rh);
+      }
+      tctx.restore();
+    }
+
+    // 3. Saturation
+    if (saturation !== 0) {
+      tctx.save();
+      tctx.globalCompositeOperation = 'saturation';
+      if (saturation < 0) {
+        tctx.fillStyle = '#808080';
+        tctx.globalAlpha = Math.min(1, Math.abs(saturation) / 100);
+      } else {
+        tctx.fillStyle = '#ff0000';
+        tctx.globalAlpha = (saturation / 100) * 0.55;
+      }
+      tctx.fillRect(rx, ry, rw, rh);
+      tctx.restore();
+    }
+  }
 
   // --- Organic Film Grain Generator (Silver Halide Simulation) ---
   const noisePatterns = {};
@@ -1165,21 +1405,29 @@ document.addEventListener('DOMContentLoaded', () => {
     photoCanvas.height = rect.height;
     const pctx = photoCanvas.getContext('2d');
 
-    // 3-a. 写真の描画（露出、コントラスト、彩度フィルター付き）
+    // 3-a. 写真の描画（露出、コントラスト、彩度、写真ぼかしフィルター付き）
     pctx.save();
-    const b = 100 + state.exposure;
-    const c = 100 + state.contrast;
-    const s = 100 + state.saturation;
-    pctx.filter = `brightness(${Math.max(0, b)}%) contrast(${Math.max(0, c)}%) saturate(${Math.max(0, s)}%)`;
+    if (supportsCanvasFilter) {
+      const b = 100 + state.exposure;
+      const c = 100 + state.contrast;
+      const s = 100 + state.saturation;
+      pctx.filter = `brightness(${Math.max(0, b)}%) contrast(${Math.max(0, c)}%) saturate(${Math.max(0, s)}%)`;
+    }
 
     pctx.translate(state.imgX - rect.x, state.imgY - rect.y);
     pctx.rotate((state.imgRotation * Math.PI) / 180);
     pctx.scale(actualScale, actualScale);
 
+    const photoSource = state.photoBlur > 0
+      ? getBlurredCanvas(state.image, state.photoBlur * 1.5, 360, photoBlurCache)
+      : state.image;
+
     pctx.drawImage(
-      state.image,
+      photoSource,
       -state.image.width / 2,
-      -state.image.height / 2
+      -state.image.height / 2,
+      state.image.width,
+      state.image.height
     );
     pctx.restore();
 
@@ -1220,6 +1468,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Film & Tone Post-Effects (Applied Strictly to Photo Pixels) ---
   function applyEffectsToContext(tctx, rx, ry, rw, rh) {
+    // 0. iOS Safari / WebKit Fallback for Exposure, Contrast, Saturation
+    if (!supportsCanvasFilter) {
+      applyBasicToneFallback(tctx, rx, ry, rw, rh, state.exposure, state.contrast, state.saturation);
+    }
+
     // A. Risograph Special Effect (2-Color Inks)
     if (state.isRisograph) {
       tctx.save();
@@ -1368,16 +1621,22 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.fillStyle = state.bgColor;
     ctx.fillRect(0, 0, W, H);
 
-    // Blurred image background (写真フィルターを美しく連動反映)
+    // Blurred image background (写真フィルター・ぼかしをiOS Safari含め全端末で完全反映)
     if (state.blurBg && state.image) {
       ctx.save();
-      
-      // 1) 写真と同じ露出・コントラスト・彩度を背景のぼかし写真にも適用
-      const bgBright = Math.max(0, (100 + state.exposure) * 0.72);
-      const bgCont = Math.max(0, 100 + state.contrast);
-      const bgSat = Math.max(0, 100 + state.saturation);
-      ctx.filter = `blur(${state.blurAmount * 1.5}px) brightness(${bgBright}%) contrast(${bgCont}%) saturate(${bgSat}%)`;
-      
+
+      // 1) Cross-browser Gaussian Box Blur via offscreen buffer
+      const bgSource = state.blurAmount > 0
+        ? getBlurredCanvas(state.image, state.blurAmount * 1.5, 260, bgBlurCache)
+        : state.image;
+
+      if (supportsCanvasFilter) {
+        const bgBright = Math.max(0, (100 + state.exposure) * 0.72);
+        const bgCont = Math.max(0, 100 + state.contrast);
+        const bgSat = Math.max(0, 100 + state.saturation);
+        ctx.filter = `brightness(${bgBright}%) contrast(${bgCont}%) saturate(${bgSat}%)`;
+      }
+
       // Cover the entire 1080x1920 canvas
       const imgAspect = state.image.width / state.image.height;
       const canvasAspect = W / H;
@@ -1389,8 +1648,17 @@ document.addEventListener('DOMContentLoaded', () => {
         drawW = W + 200;
         drawH = drawW / imgAspect;
       }
-      ctx.drawImage(state.image, (W - drawW) / 2, (H - drawH) / 2, drawW, drawH);
+      ctx.drawImage(bgSource, (W - drawW) / 2, (H - drawH) / 2, drawW, drawH);
       ctx.restore();
+
+      // iOS Safari / WebKit fallback for background brightness (0.72x) + exposure/contrast/saturation
+      if (!supportsCanvasFilter) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+        applyBasicToneFallback(ctx, 0, 0, W, H, state.exposure, state.contrast, state.saturation);
+      }
 
       // 2) 背景ぼかしにもリソグラフや色温度、黒レベルをブレンドして世界観を完全統一
       if (state.isRisograph) {
@@ -1763,6 +2031,7 @@ document.addEventListener('DOMContentLoaded', () => {
     state.exposure = p.exposure;
     state.contrast = p.contrast;
     state.saturation = p.saturation;
+    state.photoBlur = p.photoBlur || 0;
     state.highlights = p.highlights;
     state.shadows = p.shadows;
     state.whites = p.whites || 0;
@@ -1799,6 +2068,11 @@ document.addEventListener('DOMContentLoaded', () => {
     saturationSlider.value = state.saturation;
     saturationVal.textContent = state.saturation > 0 ? `+${state.saturation}` : `${state.saturation}`;
 
+    if (photoBlurSlider && photoBlurVal) {
+      photoBlurSlider.value = state.photoBlur || 0;
+      photoBlurVal.textContent = `${state.photoBlur || 0}px`;
+    }
+
     highlightsSlider.value = state.highlights;
     highlightsVal.textContent = state.highlights > 0 ? `+${state.highlights}` : `${state.highlights}`;
 
@@ -1822,11 +2096,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     vignetteSlider.value = state.vignette;
     vignetteVal.textContent = `${state.vignette}%`;
+
+    updateAdjustDots();
+  }
+
+  function updateAdjustDots() {
+    const dotMap = {
+      exposure: state.exposure !== 0,
+      contrast: state.contrast !== 0,
+      saturation: state.saturation !== 0,
+      photoBlur: (state.photoBlur || 0) > 0,
+      highlights: state.highlights !== 0,
+      shadows: state.shadows !== 0,
+      warmth: state.warmth !== 0,
+      whites: state.whites !== 0,
+      blacks: state.blacks !== 0,
+      grain: state.grain > 0,
+      grainSize: (state.grainSize || 2) !== 2,
+      vignette: state.vignette > 0
+    };
+    Object.keys(dotMap).forEach((key) => {
+      const dot = document.getElementById(`dot-${key}`);
+      if (dot) {
+        dot.classList.toggle('modified', !!dotMap[key]);
+      }
+    });
   }
 
   function onFilterSliderManualChange() {
     // プリセットのハイライト枠は外すが、リソグラフ状態は維持して微調整できるようにする
     document.querySelectorAll('.filter-card').forEach(c => c.classList.remove('active'));
+    updateAdjustDots();
     render();
   }
 
@@ -1856,6 +2156,39 @@ document.addEventListener('DOMContentLoaded', () => {
     state.saturation = parseInt(e.target.value, 10);
     saturationVal.textContent = state.saturation > 0 ? `+${state.saturation}` : `${state.saturation}`;
     onFilterSliderManualChange();
+  });
+
+  if (photoBlurSlider) {
+    photoBlurSlider.addEventListener('input', (e) => {
+      state.photoBlur = parseInt(e.target.value, 10);
+      if (photoBlurVal) photoBlurVal.textContent = `${state.photoBlur}px`;
+      onFilterSliderManualChange();
+    });
+  }
+
+  // --- Instagram-Style Horizontal Tool Strips (Mobile Single-Slider Switcher) ---
+  document.querySelectorAll('#instaAdjustStrip .insta-adjust-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.adjustTarget;
+      document.querySelectorAll('#instaAdjustStrip .insta-adjust-btn').forEach((b) => {
+        b.classList.toggle('active', b === btn);
+      });
+      document.querySelectorAll('#pane-filters .control-group[data-adjust-group]').forEach((grp) => {
+        grp.classList.toggle('mobile-adjust-active', grp.dataset.adjustGroup === target);
+      });
+    });
+  });
+
+  document.querySelectorAll('#instaImageStrip .insta-adjust-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.imgTarget;
+      document.querySelectorAll('#instaImageStrip .insta-adjust-btn').forEach((b) => {
+        b.classList.toggle('active', b === btn);
+      });
+      document.querySelectorAll('#pane-image .control-group[data-img-group]').forEach((grp) => {
+        grp.classList.toggle('mobile-img-active', grp.dataset.imgGroup === target);
+      });
+    });
   });
 
   highlightsSlider.addEventListener('input', (e) => {
