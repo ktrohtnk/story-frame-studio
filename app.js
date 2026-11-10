@@ -1631,6 +1631,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Apply Preset ---
   function applyPreset(name) {
+    const oldBox = state.image ? getPhotoRect() : null;
     state.preset = name;
     const cfg = PRESET_CONFIGS[name];
     if (!cfg) return;
@@ -1727,8 +1728,9 @@ document.addEventListener('DOMContentLoaded', () => {
       c.classList.toggle('active', c.dataset.preset === name);
     });
 
-    if (state.image) {
-      resetImageTransform('fill');
+    if (state.image && oldBox) {
+      const newBox = getPhotoRect();
+      adjustImageForNewFrame(oldBox, newBox);
     }
 
     render();
@@ -1755,6 +1757,40 @@ document.addEventListener('DOMContentLoaded', () => {
       img.src = e.target.result;
     };
     reader.readAsDataURL(file);
+  }
+
+  // フレーム（プリセット）やマージン変更時に写真の位置・構図をズレずに追従
+  function adjustImageForNewFrame(oldBox, newBox) {
+    if (!state.image || !oldBox || !newBox) return;
+
+    const oldCenterX = oldBox.x + oldBox.width / 2;
+    const oldCenterY = oldBox.y + oldBox.height / 2;
+    const newCenterX = newBox.x + newBox.width / 2;
+    const newCenterY = newBox.y + newBox.height / 2;
+
+    const offsetX = state.imgX - oldCenterX;
+    const offsetY = state.imgY - oldCenterY;
+
+    // ユーザーが手動で位置を動かしたか？（6px以内なら中央揃えと判定）
+    const isCentered = Math.hypot(offsetX, offsetY) < 6;
+
+    if (isCentered) {
+      state.imgX = newCenterX;
+      state.imgY = newCenterY;
+    } else {
+      // ユーザーがドラッグして合わせた相対的なオフセットを枠サイズ変化に合わせて追従
+      const scaleX = newBox.width / Math.max(1, oldBox.width);
+      const scaleY = newBox.height / Math.max(1, oldBox.height);
+      state.imgX = newCenterX + offsetX * scaleX;
+      state.imgY = newCenterY + offsetY * scaleY;
+    }
+
+    // 新しい枠に対する fill 基準スケールを再計算（スライダーの % 倍率はそのまま維持！）
+    const imgAspect = state.image.width / state.image.height;
+    const newBoxAspect = newBox.width / newBox.height;
+    state.imgScale = imgAspect > newBoxAspect
+      ? (newBox.height / state.image.height)
+      : (newBox.width / state.image.width);
   }
 
   function resetImageTransform(mode = 'fill') {
@@ -3304,8 +3340,13 @@ document.addEventListener('DOMContentLoaded', () => {
       marginVal.textContent = '固定';
       return;
     }
+    const oldBox = state.image ? getPhotoRect() : null;
     state.margin = parseInt(e.target.value, 10);
     marginVal.textContent = `${state.margin}px`;
+    if (state.image && oldBox) {
+      const newBox = getPhotoRect();
+      adjustImageForNewFrame(oldBox, newBox);
+    }
     render();
   });
 
