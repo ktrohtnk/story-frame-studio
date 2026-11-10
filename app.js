@@ -2539,6 +2539,94 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // --- Mobile Drawer (Slide-Up Menu) Controls ---
+  const mobileMenuToggleBtn = document.getElementById('mobileMenuToggleBtn');
+  const mobileMenuOpenBtn = document.getElementById('mobileMenuOpenBtn');
+  const closeDrawerBtn = document.getElementById('closeDrawerBtn');
+  const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+  const controlSidebar = document.getElementById('controlSidebar');
+  const drawerResetBtn = document.getElementById('drawerResetBtn');
+  const drawerHeader = document.getElementById('drawerHeader');
+
+  function openMobileMenu() {
+    if (!controlSidebar) return;
+    controlSidebar.classList.add('mobile-open');
+    if (sidebarBackdrop) sidebarBackdrop.classList.add('active');
+    if (mobileMenuToggleBtn) mobileMenuToggleBtn.classList.add('active');
+    if (mobileMenuOpenBtn) mobileMenuOpenBtn.style.opacity = '0';
+  }
+
+  function closeMobileMenu() {
+    if (!controlSidebar) return;
+    controlSidebar.classList.remove('mobile-open');
+    if (sidebarBackdrop) sidebarBackdrop.classList.remove('active');
+    if (mobileMenuToggleBtn) mobileMenuToggleBtn.classList.remove('active');
+    if (mobileMenuOpenBtn) mobileMenuOpenBtn.style.opacity = '1';
+  }
+
+  function toggleMobileMenu() {
+    if (!controlSidebar) return;
+    if (controlSidebar.classList.contains('mobile-open')) {
+      closeMobileMenu();
+    } else {
+      openMobileMenu();
+    }
+  }
+
+  if (mobileMenuToggleBtn) {
+    mobileMenuToggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMobileMenu();
+    });
+  }
+
+  if (mobileMenuOpenBtn) {
+    mobileMenuOpenBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openMobileMenu();
+    });
+  }
+
+  if (closeDrawerBtn) {
+    closeDrawerBtn.addEventListener('click', () => {
+      closeMobileMenu();
+    });
+  }
+
+  if (sidebarBackdrop) {
+    sidebarBackdrop.addEventListener('click', () => {
+      closeMobileMenu();
+    });
+  }
+
+  if (drawerResetBtn) {
+    drawerResetBtn.addEventListener('click', () => {
+      if (resetBtn) resetBtn.click();
+    });
+  }
+
+  // Swipe-down to close on drawerHeader
+  if (drawerHeader) {
+    let startY = 0;
+    drawerHeader.addEventListener('touchstart', (e) => {
+      startY = e.touches[0].clientY;
+    }, { passive: true });
+
+    drawerHeader.addEventListener('touchmove', (e) => {
+      const currentY = e.touches[0].clientY;
+      const diffY = currentY - startY;
+      if (diffY > 60) {
+        closeMobileMenu();
+      }
+    }, { passive: true });
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeMobileMenu();
+    }
+  });
+
   // --- Download Final 1080x1920 Story ---
   downloadBtn.addEventListener('click', () => {
     // Re-render once to ensure fresh state

@@ -894,6 +894,14 @@ input[type="color"]::-webkit-color-swatch {
   display: none;
 }
 
+/* Mobile-only elements (Hidden on desktop) */
+.mobile-menu-btn,
+.mobile-menu-pill,
+.drawer-header,
+.sidebar-backdrop {
+  display: none !important;
+}
+
 /* ========================================================
    Mobile Smartphone UI/UX Optimization (<= 860px)
    ======================================================== */
@@ -956,6 +964,11 @@ input[type="color"]::-webkit-color-swatch {
     gap: 8px;
   }
 
+  /* Hide header reset button on mobile to preserve space; accessible in drawer */
+  .app-header #resetBtn {
+    display: none;
+  }
+
   .btn {
     padding: 7px 12px;
     font-size: 12px;
@@ -975,30 +988,58 @@ input[type="color"]::-webkit-color-swatch {
     display: inline;
   }
 
-  /* Two-Pane Workspace: Sticky Top Preview + Scrollable Bottom Sheet */
+  /* 3-Dots Menu Toggle Button in Header */
+  .mobile-menu-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+  }
+
+  .mobile-menu-btn:active,
+  .mobile-menu-btn.active {
+    background: var(--accent);
+    color: #ffffff;
+    border-color: var(--accent);
+  }
+
+  /* Full-Height Preview Canvas (Mobile-First Immersive View) */
   .app-main {
     flex-direction: column;
     height: calc(100dvh - var(--header-height));
     flex: 1;
     overflow: hidden;
+    position: relative;
   }
 
-  /* Sticky Preview Canvas: Never scrolls away! */
+  /* Preview Section: Expands to Fill Entire Phone Screen */
   .preview-section {
-    flex: 0 0 43vh;
-    height: 43vh;
-    max-height: 43vh;
-    min-height: 220px;
-    padding: 6px 10px 10px 10px;
+    flex: 1;
+    height: 100%;
+    max-height: none;
+    min-height: 0;
+    padding: 6px 6px calc(8px + env(safe-area-inset-bottom, 0px)) 6px;
     background-color: #07080a;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: none;
     overflow: hidden;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    position: relative;
   }
 
   .preview-container {
+    flex: 1;
     height: 100%;
     max-height: 100%;
     min-height: 0;
@@ -1006,22 +1047,33 @@ input[type="color"]::-webkit-color-swatch {
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 0;
   }
 
   .canvas-wrapper {
     touch-action: none; /* Prevents viewport scroll/bounce during canvas drag */
-    border-radius: 12px;
+    border-radius: 14px;
+    height: 100%;
+    width: auto;
     max-height: 100%;
+    max-width: 100%;
     aspect-ratio: 9 / 16;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75);
   }
 
   .canvas-hints {
-    bottom: 4px;
+    bottom: 64px;
+    left: 50%;
+    transform: translateX(-50%);
+    position: absolute;
     padding: 3px 10px;
-    font-size: 10.5px;
+    font-size: 10px;
     letter-spacing: 0.2px;
     border-radius: 12px;
-    background: rgba(14, 15, 18, 0.88);
+    background: rgba(14, 15, 18, 0.85);
+    white-space: nowrap;
+    z-index: 5;
+    pointer-events: none;
   }
 
   .hint-desktop {
@@ -1032,18 +1084,140 @@ input[type="color"]::-webkit-color-swatch {
     display: inline;
   }
 
-  /* Bottom Control Panel (Drawer / Sheet) */
+  /* Floating Bottom Menu Pill Button (On Preview) */
+  .mobile-menu-pill {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    position: absolute;
+    bottom: max(14px, env(safe-area-inset-bottom, 14px));
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 22px;
+    background: rgba(22, 25, 32, 0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 9999px;
+    color: #ffffff;
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    z-index: 10;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    white-space: nowrap;
+  }
+
+  .mobile-menu-pill:active {
+    transform: translateX(-50%) scale(0.96);
+    background: rgba(36, 40, 50, 0.96);
+  }
+
+  /* Slide-Up Bottom Drawer Sheet for Control Sidebar */
   .control-sidebar {
-    flex: 1;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
     width: 100%;
-    height: auto;
+    height: 75vh;
+    height: 75dvh;
+    max-height: 82vh;
     min-height: 0;
     display: flex;
     flex-direction: column;
     background-color: var(--bg-surface);
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
     border-left: none;
-    border-top: none;
+    border-bottom: none;
+    border-right: none;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    transform: translateY(100%);
+    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
     overflow: hidden;
+  }
+
+  .control-sidebar.mobile-open {
+    transform: translateY(0);
+  }
+
+  /* Backdrop Overlay */
+  .sidebar-backdrop {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.28s ease;
+  }
+
+  .sidebar-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Drawer Header */
+  .drawer-header {
+    display: flex !important;
+    flex-direction: column;
+    padding: 8px 16px 10px 16px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+    touch-action: pan-y;
+  }
+
+  .drawer-handle-bar {
+    width: 36px;
+    height: 4.5px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 9999px;
+    margin: 2px auto 8px auto;
+  }
+
+  .drawer-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .drawer-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .drawer-actions {
+    display: flex;
+    align-items: center;
+  }
+
+  .drawer-close-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .drawer-close-btn:active {
+    background: rgba(255, 255, 255, 0.2);
   }
 
   /* Horizontally Scrollable Touch Tab Bar */
