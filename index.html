@@ -852,6 +852,31 @@
       <!-- Mobile Backdrop Overlay -->
       <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
     </main>
+
+    <!-- Camera Roll Save Modal (スマホでカメラロール/写真アプリへ確実に保存するためのモーダル) -->
+    <div id="saveCameraRollModal" class="save-modal hidden">
+      <div class="save-modal-card">
+        <div class="save-modal-header">
+          <span class="save-modal-title">📸 カメラロールに保存</span>
+          <button type="button" id="closeSaveModalBtn" class="save-modal-close">✕ 閉じる</button>
+        </div>
+        <p class="save-modal-hint">
+          💡 <strong>下の画像を長押しして「"写真"に保存」</strong>を選ぶか、<br>
+          下のボタンから<strong>「画像を保存」</strong>をタップしてください
+        </p>
+        <div class="save-modal-img-wrap">
+          <img id="saveModalImg" class="save-modal-img" alt="Story Frame Image">
+        </div>
+        <div class="save-modal-actions">
+          <button type="button" id="shareSaveModalBtn" class="btn btn-primary full-width">
+            📲 「画像を保存」メニューを開く
+          </button>
+          <button type="button" id="fileDownloadModalBtn" class="btn btn-secondary full-width" style="font-size: 12px; padding: 7px 12px;">
+            ファイルとしてダウンロード (.png)
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>

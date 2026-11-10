@@ -2997,24 +2997,126 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // --- Download Final 1080x1920 Story ---
-  downloadBtn.addEventListener('click', () => {
+  // --- Save to Camera Roll (iOS/Android) & Download Final 1080x1920 Story ---
+  const saveCameraRollModal = document.getElementById('saveCameraRollModal');
+  const saveModalImg = document.getElementById('saveModalImg');
+  const closeSaveModalBtn = document.getElementById('closeSaveModalBtn');
+  const shareSaveModalBtn = document.getElementById('shareSaveModalBtn');
+  const fileDownloadModalBtn = document.getElementById('fileDownloadModalBtn');
+
+  let lastGeneratedFile = null;
+  let lastGeneratedDataUrl = '';
+  let lastGeneratedFilename = '';
+
+  function isMobileOrTouchDevice() {
+    const ua = navigator.userAgent || '';
+    const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/i.test(ua);
+    return isIOS || isAndroid || window.matchMedia('(max-width: 860px)').matches;
+  }
+
+  function dataURLToFile(dataUrl, filename) {
+    const arr = dataUrl.split(',');
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], filename, { type: mime });
+  }
+
+  function triggerFileDownload(dataUrl, filename) {
+    const a = document.createElement('a');
+    a.download = filename;
+    a.href = dataUrl;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  function closeSaveModal() {
+    if (saveCameraRollModal) {
+      saveCameraRollModal.classList.add('hidden');
+    }
+  }
+
+  if (closeSaveModalBtn) {
+    closeSaveModalBtn.addEventListener('click', closeSaveModal);
+  }
+
+  if (saveCameraRollModal) {
+    saveCameraRollModal.addEventListener('click', (e) => {
+      if (e.target === saveCameraRollModal) {
+        closeSaveModal();
+      }
+    });
+  }
+
+  if (shareSaveModalBtn) {
+    shareSaveModalBtn.addEventListener('click', async () => {
+      if (lastGeneratedFile && navigator.canShare && navigator.canShare({ files: [lastGeneratedFile] })) {
+        try {
+          await navigator.share({
+            files: [lastGeneratedFile],
+            title: 'StoryFrame Studio'
+          });
+          closeSaveModal();
+        } catch (err) {
+          // User canceled share sheet; keep modal open for long-press save
+        }
+      }
+    });
+  }
+
+  if (fileDownloadModalBtn) {
+    fileDownloadModalBtn.addEventListener('click', () => {
+      if (lastGeneratedDataUrl && lastGeneratedFilename) {
+        triggerFileDownload(lastGeneratedDataUrl, lastGeneratedFilename);
+      }
+    });
+  }
+
+  downloadBtn.addEventListener('click', async () => {
     // Re-render once to ensure fresh state
     render();
 
-    // Export high-res PNG
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const timestamp = new Date().toISOString().slice(0, 10);
-      a.download = `story-frame-${timestamp}.png`;
-      a.href = url;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 'image/png');
+    const timestamp = new Date().toISOString().slice(0, 10);
+    lastGeneratedFilename = `story-frame-${timestamp}.png`;
+    lastGeneratedDataUrl = canvas.toDataURL('image/png');
+    lastGeneratedFile = dataURLToFile(lastGeneratedDataUrl, lastGeneratedFilename);
+
+    // On Smartphone / Tablet: Save to Camera Roll via Web Share API + Long-Press Image Modal
+    if (isMobileOrTouchDevice()) {
+      if (saveModalImg) {
+        saveModalImg.src = lastGeneratedDataUrl;
+      }
+      const canWebShareFiles = !!(navigator.canShare && navigator.canShare({ files: [lastGeneratedFile] }));
+      if (shareSaveModalBtn) {
+        shareSaveModalBtn.style.display = canWebShareFiles ? 'inline-flex' : 'none';
+      }
+      if (saveCameraRollModal) {
+        saveCameraRollModal.classList.remove('hidden');
+      }
+
+      if (canWebShareFiles) {
+        try {
+          await navigator.share({
+            files: [lastGeneratedFile],
+            title: 'StoryFrame Studio'
+          });
+          closeSaveModal();
+        } catch (err) {
+          // Keep modal open so user can long-press image -> "写真に保存"
+        }
+      }
+      return;
+    }
+
+    // On Desktop (Mac / PC): Standard PNG download
+    triggerFileDownload(lastGeneratedDataUrl, lastGeneratedFilename);
   });
 
   // --- Boot: Initialize immediately, then re-render when fonts load ---
