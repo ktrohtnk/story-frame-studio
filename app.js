@@ -468,43 +468,73 @@ document.addEventListener('DOMContentLoaded', () => {
       prefix: 'FDS/',
       title: 'FORM AND SPACE DESIGN',
       grade: '2nd & 3rd grade',
-      weight: 800
+      weight: 800,
+      frameColor: '#1bb9ee',
+      gradeColor: '#ffffff'
     },
     visual: {
       prefix: 'FDS/',
       title: 'VISUAL DESIGN',
       grade: '2nd & 3rd grade',
-      weight: 800
+      weight: 800,
+      frameColor: '#ee3a65', // 赤系（ピンク寄り）
+      gradeColor: '#ffffff'
     },
     first_year: {
       prefix: 'FDS/',
       title: '1st Year Class',
       grade: '',
-      weight: 800
+      weight: 800,
+      frameColor: '#f8dc6c', // 黄色系（クリーム寄り）
+      gradeColor: '#090405'
     },
     '1st': {
       prefix: 'FDS/',
       title: 'FORM AND SPACE DESIGN',
       grade: '1st grade',
-      weight: 800
+      weight: 800,
+      frameColor: '#1bb9ee',
+      gradeColor: '#ffffff'
     },
     '4th': {
       prefix: 'FDS/',
       title: 'FORM AND SPACE DESIGN',
       grade: '4th grade',
-      weight: 800
+      weight: 800,
+      frameColor: '#1bb9ee',
+      gradeColor: '#ffffff'
     },
     grad: {
       prefix: 'FDS/',
       title: 'GRADUATION EXHIBITION',
       grade: 'CLASS OF 2026',
-      weight: 900
+      weight: 900,
+      frameColor: '#111111',
+      gradeColor: '#ffffff'
     },
     arch: {
       prefix: 'ARCH/',
       title: 'ARCHITECTURE & SPACE',
       grade: 'STUDIO WORKSHOP',
-      weight: 800
+      weight: 800,
+      frameColor: '#2b2d42',
+      gradeColor: '#ffffff'
+    }
+  };
+
+  // 専攻・クラス名に応じた専用フレームカラー・配色定義
+  const FS_TITLE_STYLES = {
+    'FORM AND SPACE DESIGN': {
+      frameColor: '#1bb9ee', // シアンブルー (標準)
+      gradeColor: '#ffffff'
+    },
+    'VISUAL DESIGN': {
+      frameColor: '#ee3a65', // 赤系（ピンク寄り）
+      gradeColor: '#ffffff'
+    },
+    '1st Year Class': {
+      frameColor: '#f8dc6c', // 黄色系（クリーム寄り）
+      gradeColor: '#090405'
     }
   };
 
@@ -2091,6 +2121,20 @@ document.addEventListener('DOMContentLoaded', () => {
     chip.addEventListener('click', () => {
       state.fsTextTitle = chip.dataset.fsTitle;
       if (fsTitleInput) fsTitleInput.value = state.fsTextTitle;
+
+      // 専攻・クラスに対応するフレームカラーと文字色を自動適用
+      const styleCfg = FS_TITLE_STYLES[state.fsTextTitle];
+      if (styleCfg) {
+        if (styleCfg.frameColor) {
+          state.frameColor = styleCfg.frameColor;
+          if (frameColorPicker) frameColorPicker.value = state.frameColor;
+        }
+        if (styleCfg.gradeColor) {
+          state.fsGradeColor = styleCfg.gradeColor;
+          if (fsGradeColorPicker) fsGradeColorPicker.value = state.fsGradeColor;
+        }
+      }
+
       // 1st Year Classが選ばれた場合、学年欄が2nd & 3rd gradeのままなら空欄にして重複を防ぐ
       if (state.fsTextTitle === '1st Year Class' && state.fsTextGrade === '2nd & 3rd grade') {
         state.fsTextGrade = '';
@@ -2117,6 +2161,17 @@ document.addEventListener('DOMContentLoaded', () => {
   if (fsTitleInput) {
     fsTitleInput.addEventListener('input', (e) => {
       state.fsTextTitle = e.target.value;
+      const styleCfg = FS_TITLE_STYLES[state.fsTextTitle];
+      if (styleCfg) {
+        if (styleCfg.frameColor) {
+          state.frameColor = styleCfg.frameColor;
+          if (frameColorPicker) frameColorPicker.value = state.frameColor;
+        }
+        if (styleCfg.gradeColor) {
+          state.fsGradeColor = styleCfg.gradeColor;
+          if (fsGradeColorPicker) fsGradeColorPicker.value = state.fsGradeColor;
+        }
+      }
       syncFsChips();
       render();
     });
@@ -2155,6 +2210,14 @@ document.addEventListener('DOMContentLoaded', () => {
         state.fsTextTitle = tpl.title;
         state.fsTextGrade = tpl.grade;
         state.fsTitleWeight = tpl.weight;
+        if (tpl.frameColor) {
+          state.frameColor = tpl.frameColor;
+          if (frameColorPicker) frameColorPicker.value = state.frameColor;
+        }
+        if (tpl.gradeColor) {
+          state.fsGradeColor = tpl.gradeColor;
+          if (fsGradeColorPicker) fsGradeColorPicker.value = state.fsGradeColor;
+        }
 
         if (fsPrefixInput) fsPrefixInput.value = state.fsTextPrefix;
         if (fsTitleInput) fsTitleInput.value = state.fsTextTitle;
@@ -2236,6 +2299,7 @@ document.addEventListener('DOMContentLoaded', () => {
       state.fsTitleWeight = 800;
       state.fsFontSize = 30;
       state.fsLetterSpacing = 0;
+      state.frameColor = '#1bb9ee';
       state.fsTitleColor = '#090405';
       state.fsGradeColor = '#ffffff';
       state.fsBorderSides = 'all';
@@ -2249,6 +2313,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (fsFontSizeVal) fsFontSizeVal.textContent = '30px (サンプル標準)';
       if (fsSpacingSlider) fsSpacingSlider.value = 0;
       if (fsSpacingVal) fsSpacingVal.textContent = '0px (サンプル標準)';
+      if (frameColorPicker) frameColorPicker.value = state.frameColor;
       if (fsTitleColorPicker) fsTitleColorPicker.value = state.fsTitleColor;
       if (fsGradeColorPicker) fsGradeColorPicker.value = state.fsGradeColor;
 
