@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>StoryFrame Studio - インスタストーリー枠メーカー</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+JP:wght@300;400;500;700;900&family=Share+Tech+Mono&family=Zen+Old+Mincho:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <span class="logo-badge">9:16</span>
+        <h1>StoryFrame<span class="logo-studio"> Studio</span></h1>
+      </div>
+      <div class="header-actions">
+        <button id="resetBtn" class="btn btn-secondary">リセット</button>
+        <button id="downloadBtn" class="btn btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span class="btn-label-long">ストーリー保存 (1080×1920)</span>
+          <span class="btn-label-short">保存</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="app-main">
+      <!-- Preview Canvas Area -->
+      <section class="preview-section">
+        <div class="preview-container">
+          <div class="canvas-wrapper" id="canvasWrapper">
+            <canvas id="mainCanvas" width="1080" height="1920"></canvas>
+            
+            <!-- Drag & Drop Overlay when empty -->
+            <div id="dropZonePrompt" class="drop-prompt">
+              <div class="drop-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              </div>
+              <p class="drop-title">写真をドラッグ＆ドロップ</p>
+              <p class="drop-desc">またはファイルを選択してください</p>
+              <label for="imageUpload" class="btn btn-accent file-select-label">写真を選択</label>
+              <input type="file" id="imageUpload" accept="image/*" hidden>
+            </div>
+          </div>
+        </div>
+
+        <div class="canvas-hints">
+          <span class="hint-desktop">💡 写真やテキストをドラッグで移動 / ホイールで拡大縮小</span>
+          <span class="hint-mobile">💡 ドラッグで移動 / 2本指ピンチで拡大縮小</span>
+        </div>
+      </section>
+
+      <!-- Control Sidebar -->
+      <aside class="control-sidebar">
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="presets">フレーム</button>
+          <button class="tab-btn" data-tab="filters">フィルター</button>
+          <button class="tab-btn" data-tab="image">写真・配置</button>
+          <button class="tab-btn" data-tab="style">枠スタイル</button>
+          <button class="tab-btn" data-tab="text">テキスト</button>
+        </div>
+
+        <div class="tab-contents">
+          <!-- TAB 1: PRESETS -->
+          <div class="tab-pane active" id="pane-presets">
+            <h2 class="pane-title">フレームプリセット</h2>
+            <div class="preset-grid">
+              <button class="preset-card active" data-preset="polaroid">
+                <div class="preset-thumb polaroid-thumb"></div>
+                <span>Polaroid</span>
+              </button>
+              <button class="preset-card" data-preset="fs_2_3">
+                <div class="preset-thumb fs23-thumb"></div>
+                <span>FS_2&3</span>
+              </button>
+              <button class="preset-card" data-preset="minimal">
+                <div class="preset-thumb minimal-thumb"></div>
+                <span>Minimal</span>
+              </button>
+              <button class="preset-card" data-preset="film">
+                <div class="preset-thumb film-thumb"></div>
+                <span>35mm Film</span>
+              </button>
+              <button class="preset-card" data-preset="clean">
+                <div class="preset-thumb clean-thumb"></div>
+                <span>No Frame</span>
+              </button>
+            </div>
+
+            <div class="section-divider"></div>
+            <h2 class="pane-title">オリジナル透過PNG枠を追加</h2>
+            <div class="custom-overlay-upload">
+              <label for="overlayUpload" class="btn btn-secondary full-width">
+                自作フレーム(PNG)を重ねる
+              </label>
+              <input type="file" id="overlayUpload" accept="image/png,image/webp" hidden>
+              <button id="removeOverlayBtn" class="btn-text danger hidden">自作フレームを解除</button>
+            </div>
+          </div>
+
+          <!-- TAB 2: FILTERS & ADJUSTMENTS -->
+          <div class="tab-pane" id="pane-filters">
+            <div class="pane-header-row">
+              <h2 class="pane-title">フィルム風フィルター</h2>
+              <button id="resetFiltersBtn" class="btn-text">補正を初期化</button>
+            </div>
+
+            <div class="filter-presets-grid">
+              <button class="filter-card active" data-filter="normal">
+                <div class="filter-preview filter-normal"></div>
+                <span>Original</span>
+              </button>
+              <button class="filter-card" data-filter="cinematic">
+                <div class="filter-preview filter-cinematic"></div>
+                <span>Cinema Moody</span>
+              </button>
+              <button class="filter-card" data-filter="tealorange">
+                <div class="filter-preview filter-tealorange"></div>
+                <span>Teal & Orange</span>
+              </button>
+              <button class="filter-card" data-filter="risograph">
+                <div class="filter-preview filter-risograph"></div>
+                <span>Risograph</span>
+              </button>
+              <button class="filter-card" data-filter="fds">
+                <div class="filter-preview filter-fds"></div>
+                <span>FDS Warm</span>
+              </button>
+              <button class="filter-card" data-filter="fuji">
+                <div class="filter-preview filter-fuji"></div>
+                <span>Fuji Chrome</span>
+              </button>
+              <button class="filter-card" data-filter="fade">
+                <div class="filter-preview filter-fade"></div>
+                <span>Retro Fade</span>
+              </button>
+              <button class="filter-card" data-filter="noir">
+                <div class="filter-preview filter-noir"></div>
+                <span>B&W Noir</span>
+              </button>
+              <button class="filter-card" data-filter="instant">
+                <div class="filter-preview filter-instant"></div>
+                <span>Instant Cam</span>
+              </button>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <h2 class="pane-title">詳細トーン補正</h2>
+
+            <!-- Exposure / Brightness -->
+            <div class="control-group">
+              <div class="label-row">
+                <label for="exposureSlider">露出 (明るさ)</label>
+                <span id="exposureVal" class="val-badge">0</span>
+              </div>
+              <input type="range" id="exposureSlider" min="-100" max="100" value="0">
+            </div>
+
+            <!-- Contrast -->
+            <div class="control-group">
+              <div class="label-row">
+                <label for="contrastSlider">コントラスト</label>
+                <span id="contrastVal" class="val-badge">0</span>
+              </div>
+              <input type="range" id="contrastSlider" min="-100" max="100" value="0">
+            </div>
+
+            <!-- Highlights -->
+            <div class="control-group">
+              <div class="label-row">
+                <label for="highlightsSlider">ハイライト (明部)</label>
+                <span id="highlightsVal" class="val-badge">0</span>
+              </div>
+              <input type="range" id="highlightsSlider" min="-100" max="100" value="0">
+            </div>
+
+            <!-- Shadows -->
+            <div class="control-group">
+              <div class="label-row">
+                <label for="shadowsSlider">シャドウ (暗部持ち上げ)</label>
+                <span id="shadowsVal" class="val-badge">0</span>
+              </div>
+              <input type="range" id="shadowsSlider" min="-100" max="100" value="0">
+            </div>
+
+            <!-- Whites -->
+            <div class="control-group">
+              <div class="label-row">
+                <label for="whitesSlider">白レベル (最明部)</label>
+                <span id="whitesVal" class="val-badge">0</span>
+              </div>
+              <input type="range" id="whitesSlider" min="-100" max="100" value="0">
+            </div>
+
+            <!-- Blacks -->
+            <div class="control-group">
+              <div class="label-row">
+                <label for="blacksSlider">黒レベル (マット/黒浮き)</label>
+                <span id="blacksVal" class="val-badge">0</span>
+              </div>
+              <input type="range" id="blacksSlider" min="-100" max="100" value="0">
+            </div>
+
+            <!-- Saturation -->
+            <div class="control-group">
+              <div class="label-row">
+                <label for="saturationSlider">彩度 (鮮やかさ)</label>
+                <span id="saturationVal" class="val-badge">0</span>
+              </div>
+              <input type="range" id="saturationSlider" min="-100" max="100" value="0">
+            </div>
+
+            <!-- Warmth -->
+            <div class="control-group">
+              <div class="label-row">
+                <label for="warmthSlider">色温度 (暖かみ / 寒色)</label>
+                <span id="warmthVal" class="val-badge">0</span>
+              </div>
+              <input type="range" id="warmthSlider" min="-100" max="100" value="0">
+            </div>
+
+            <div class="section-divider"></div>
+
+            <h2 class="pane-title">フィルム＆粒子エフェクト</h2>
+
+            <!-- Film Grain -->
+            <div class="control-group">
+              <div class="label-row">
+                <label for="grainSlider">粒子の強さ (グレイン)</label>
+                <span id="grainVal" class="val-badge">0%</span>
+              </div>
+              <input type="range" id="grainSlider" min="0" max="100" value="0">
+            </div>
+
+            <!-- Grain Size / Roughness -->
+            <div class="control-group">
+              <div class="label-row">
+                <label for="grainSizeSlider">粒子の粗さ (サイズ)</label>
+                <span id="grainSizeVal" class="val-badge">中 (標準)</span>
+              </div>
+              <input type="range" id="grainSizeSlider" min="1" max="4" value="2">
+            </div>
+
+            <!-- Vignette -->
+            <div class="control-group">
+              <div class="label-row">
+                <label for="vignetteSlider">周辺減光 (ビネット)</label>
+                <span id="vignetteVal" class="val-badge">0%</span>
+              </div>
+              <input type="range" id="vignetteSlider" min="0" max="100" value="0">
+            </div>
+
+            <div class="section-divider"></div>
+
+            <!-- Lightroom / LUT Import Section -->
+            <h2 class="pane-title">外部プリセット / LUT 読み込み</h2>
+            <div class="lut-import-box">
+              <p class="lut-desc">Lightroom (.xmp) または 3D LUT (.cube) を読み込んで色味を反映できます</p>
+              <label for="lutUpload" class="btn btn-secondary full-width">
+                プリセット(.xmp / .cube)を選択
+              </label>
+              <input type="file" id="lutUpload" accept=".xmp,.cube" hidden>
+              <p id="lutStatus" class="lut-status"></p>
+            </div>
+          </div>
+
+          <!-- TAB 2: IMAGE ADJUSTMENT -->
+          <div class="tab-pane" id="pane-image">
+            <h2 class="pane-title">写真の調整</h2>
+            
+            <div class="control-group">
+              <div class="btn-group-row">
+                <label for="changeImageBtn" class="btn btn-secondary flex-1">
+                  別の写真に変更
+                </label>
+                <input type="file" id="changeImageBtn" accept="image/*" hidden>
+                <button id="fitImageBtn" class="btn btn-secondary" title="枠にフィット">フィット</button>
+                <button id="fillImageBtn" class="btn btn-secondary" title="枠を埋める">全体</button>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <div class="label-row">
+                <label for="scaleSlider">サイズ (拡大・縮小)</label>
+                <span id="scaleVal" class="val-badge">100%</span>
+              </div>
+              <input type="range" id="scaleSlider" min="20" max="300" value="100">
+            </div>
+
+            <div class="control-group">
+              <div class="label-row">
+                <label for="rotateSlider">回転</label>
+                <span id="rotateVal" class="val-badge">0°</span>
+              </div>
+              <input type="range" id="rotateSlider" min="-180" max="180" value="0">
+            </div>
+
+            <div class="section-divider"></div>
+
+            <h2 class="pane-title">背景レイヤー</h2>
+            <div class="control-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="blurBgCheck" checked>
+                <span>背景に写真をぼかして敷く</span>
+              </label>
+            </div>
+
+            <div class="control-group" id="blurAmountGroup">
+              <div class="label-row">
+                <label for="blurSlider">ぼかしの強さ</label>
+                <span id="blurVal" class="val-badge">24px</span>
+              </div>
+              <input type="range" id="blurSlider" min="4" max="60" value="24">
+            </div>
+
+            <div class="control-group">
+              <div class="label-row">
+                <label for="bgColorPicker">背景カラー (ぼかしオフ時)</label>
+              </div>
+              <div class="color-picker-row">
+                <input type="color" id="bgColorPicker" value="#121214">
+                <div class="preset-colors">
+                  <span class="color-dot" style="background: #121214;" data-color="#121214"></span>
+                  <span class="color-dot" style="background: #ffffff;" data-color="#ffffff"></span>
+                  <span class="color-dot" style="background: #f7f4ec;" data-color="#f7f4ec"></span>
+                  <span class="color-dot" style="background: #1f2937;" data-color="#1f2937"></span>
+                  <span class="color-dot" style="background: #ff758c;" data-color="#ff758c"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: FRAME STYLE -->
+          <div class="tab-pane" id="pane-style">
+            <h2 class="pane-title">枠のカスタマイズ</h2>
+            <p id="fs23FixedNote" class="control-hint hidden" style="color: #00d2ff; background: rgba(0, 210, 255, 0.08); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(0, 210, 255, 0.2); margin-bottom: 14px;">ℹ️ 「FS_2&3」は枠の太さはデザイン固定ですが、枠の色や文字内容は自由に変更できます。</p>
+
+            <div class="control-group">
+              <div class="label-row">
+                <label for="frameMarginSlider">余白 (マージン)</label>
+                <span id="marginVal" class="val-badge">80px</span>
+              </div>
+              <input type="range" id="frameMarginSlider" min="0" max="240" value="80">
+            </div>
+
+            <div class="control-group">
+              <div class="label-row">
+                <label for="borderWidthSlider">枠の太さ</label>
+                <span id="borderWidthVal" class="val-badge">0px</span>
+              </div>
+              <input type="range" id="borderWidthSlider" min="0" max="60" value="0">
+            </div>
+
+            <div class="control-group">
+              <div class="label-row">
+                <label for="borderRadiusSlider">写真の角丸</label>
+                <span id="radiusVal" class="val-badge">32px</span>
+              </div>
+              <input type="range" id="borderRadiusSlider" min="0" max="120" value="32">
+            </div>
+
+            <div class="control-group">
+              <div class="label-row">
+                <label for="frameColorPicker">枠・フレームカラー</label>
+              </div>
+              <div class="color-picker-row">
+                <input type="color" id="frameColorPicker" value="#ffffff">
+                <div class="preset-colors">
+                  <span class="color-dot" style="background: #1bb9ee;" data-frame-color="#1bb9ee" title="FS シアン"></span>
+                  <span class="color-dot" style="background: #ffffff;" data-frame-color="#ffffff"></span>
+                  <span class="color-dot" style="background: #f5f0e8;" data-frame-color="#f5f0e8"></span>
+                  <span class="color-dot" style="background: #111111;" data-frame-color="#111111"></span>
+                  <span class="color-dot" style="background: #ffd166;" data-frame-color="#ffd166"></span>
+                  <span class="color-dot" style="background: #06d6a0;" data-frame-color="#06d6a0"></span>
+                  <span class="color-dot" style="background: #118ab2;" data-frame-color="#118ab2"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="shadowCheck" checked>
+                <span>写真にドロップシャドウをつける</span>
+              </label>
+            </div>
+
+            <!-- FS_2&3 専用グラフィック文字設定セクション -->
+            <div id="fs23ControlsSection" class="hidden">
+              <div class="section-divider"></div>
+              <div class="pane-header-row" style="margin-bottom: 6px;">
+                <h2 class="pane-title" style="font-size: 14px; color: #1bb9ee;">FS_2&3 タイポグラフィ構成</h2>
+                <button id="resetFs23TextBtn" class="btn-text">初期値に戻す</button>
+              </div>
+              <p class="control-hint" style="margin-bottom: 12px; font-size: 12px; color: var(--text-muted); line-height: 1.4;">
+                「略号 (中太 500)」「専攻名 (極太 800)」「学年 (細字 400)」の3層ウェイトで構成されています。
+              </p>
+
+              <!-- クイックテンプレート（学年・展示のワンタップ選択） -->
+              <div class="control-group">
+                <div class="label-row">
+                  <label>学年・プリセット</label>
+                </div>
+                <div class="chip-group" id="fsTemplateChips">
+                  <button class="chip-btn active" data-fs-template="default">2nd & 3rd (標準)</button>
+                  <button class="chip-btn" data-fs-template="1st">1st grade (1年)</button>
+                  <button class="chip-btn" data-fs-template="4th">4th grade (4年)</button>
+                  <button class="chip-btn" data-fs-template="grad">卒業制作展</button>
+                  <button class="chip-btn" data-fs-template="arch">Architecture</button>
+                </div>
+              </div>
+
+              <!-- ① 略称・コード (Medium 500) -->
+              <div class="control-group">
+                <div class="label-row">
+                  <label for="fsPrefixInput">① 略称 / プレフィックス</label>
+                  <span class="val-badge" style="background: rgba(255,255,255,0.08); font-weight: 500;">Medium 500</span>
+                </div>
+                <input type="text" id="fsPrefixInput" class="text-input" value="FDS/" placeholder="例: FDS/ や ARCH/">
+              </div>
+
+              <!-- ② メインタイトル / 専攻名 (ExtraBold/Black 800-900) -->
+              <div class="control-group">
+                <div class="label-row">
+                  <label for="fsTitleInput">② メインタイトル / 専攻名</label>
+                  <span id="fsTitleWeightBadge" class="val-badge" style="background: rgba(255,255,255,0.14); font-weight: 800; color: #ffd166;">ExtraBold 800 (太字)</span>
+                </div>
+                <input type="text" id="fsTitleInput" class="text-input" value="FORM AND SPACE DESIGN" placeholder="例: FORM AND SPACE DESIGN">
+              </div>
+
+              <!-- ③ 学年・付帯情報 (Regular 400 - 白文字) -->
+              <div class="control-group">
+                <div class="label-row">
+                  <label for="fsGradeInput">③ 学年 / サブ情報</label>
+                  <span class="val-badge" style="background: rgba(255,255,255,0.06); font-weight: 400;">Regular 400 (白文字)</span>
+                </div>
+                <input type="text" id="fsGradeInput" class="text-input" value="2nd & 3rd grade" placeholder="例: 2nd & 3rd grade">
+              </div>
+
+              <!-- メインタイトルの太さ微調整 -->
+              <div class="control-group">
+                <div class="label-row">
+                  <label>② メインタイトルの太さ (ウェイト)</label>
+                  <span id="fsTitleWeightVal" class="val-badge">ExtraBold (800)</span>
+                </div>
+                <div class="segmented-control" id="fsTitleWeightControl">
+                  <button class="seg-btn fs-weight-btn" data-fs-weight="500">Medium</button>
+                  <button class="seg-btn fs-weight-btn" data-fs-weight="700">Bold</button>
+                  <button class="seg-btn fs-weight-btn active" data-fs-weight="800">ExtraBold</button>
+                  <button class="seg-btn fs-weight-btn" data-fs-weight="900">Black</button>
+                </div>
+              </div>
+
+              <!-- Title Text Color -->
+              <div class="control-group">
+                <div class="label-row">
+                  <label for="fsTitleColorPicker">タイトル文字色 (① & ②)</label>
+                </div>
+                <div class="color-picker-row">
+                  <input type="color" id="fsTitleColorPicker" value="#090405">
+                  <div class="preset-colors">
+                    <span class="color-dot" style="background: #090405;" data-fs-title-color="#090405" title="ブラック"></span>
+                    <span class="color-dot" style="background: #ffffff;" data-fs-title-color="#ffffff" title="ホワイト"></span>
+                    <span class="color-dot" style="background: #111111;" data-fs-title-color="#111111" title="ダークグレー"></span>
+                    <span class="color-dot" style="background: #ffd166;" data-fs-title-color="#ffd166" title="イエロー"></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Subtitle Text Color -->
+              <div class="control-group">
+                <div class="label-row">
+                  <label for="fsGradeColorPicker">学年・サブ文字色 (③)</label>
+                </div>
+                <div class="color-picker-row">
+                  <input type="color" id="fsGradeColorPicker" value="#ffffff">
+                  <div class="preset-colors">
+                    <span class="color-dot" style="background: #ffffff;" data-fs-grade-color="#ffffff" title="ホワイト"></span>
+                    <span class="color-dot" style="background: #090405;" data-fs-grade-color="#090405" title="ブラック"></span>
+                    <span class="color-dot" style="background: #ffd166;" data-fs-grade-color="#ffd166" title="イエロー"></span>
+                    <span class="color-dot" style="background: #ff758c;" data-fs-grade-color="#ff758c" title="ピンク"></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Border Sides Selection -->
+              <div class="control-group">
+                <div class="label-row">
+                  <label>文字の配置辺</label>
+                </div>
+                <div class="segmented-control" id="fsSidesControl">
+                  <button class="seg-btn fs-sides-btn active" data-sides="all">4辺すべて</button>
+                  <button class="seg-btn fs-sides-btn" data-sides="top-bottom">上下のみ</button>
+                  <button class="seg-btn fs-sides-btn" data-sides="top">上辺のみ</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 4: TEXT -->
+          <div class="tab-pane" id="pane-text">
+            <h2 class="pane-title">キャプション / 日付</h2>
+
+            <div class="control-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="enableTextCheck" checked>
+                <span>テキストを表示する</span>
+              </label>
+            </div>
+
+            <div id="textControlsSection">
+              <div class="control-group">
+                <div class="label-row">
+                  <label for="textInput">テキスト内容</label>
+                  <button id="todayDateBtn" class="btn-text">今日の日付</button>
+                </div>
+                <input type="text" id="textInput" class="text-input" placeholder="MEMORIES, DATE, ETC." value="TODAY'S MOMENT">
+              </div>
+
+              <div class="control-group">
+                <label for="fontSelect">フォント</label>
+                <select id="fontSelect" class="select-input">
+                  <option value="'Inter', sans-serif">Inter (Modern Clean)</option>
+                  <option value="'Caveat', cursive">Caveat (Handwritten)</option>
+                  <option value="'Cormorant Garamond', serif">Cormorant Garamond (Elegance)</option>
+                  <option value="'Share Tech Mono', monospace">Share Tech Mono (Digital/Film)</option>
+                  <option value="'Zen Old Mincho', serif">Zen Old Mincho (明朝体)</option>
+                </select>
+              </div>
+
+              <div class="control-group">
+                <div class="label-row">
+                  <label for="fontSizeSlider">文字サイズ</label>
+                  <span id="fontSizeVal" class="val-badge">36px</span>
+                </div>
+                <input type="range" id="fontSizeSlider" min="16" max="90" value="36">
+              </div>
+
+              <div class="control-group">
+                <div class="label-row">
+                  <label>文字の太さ</label>
+                  <span id="fontWeightVal" class="val-badge">Medium</span>
+                </div>
+                <div class="segmented-control" id="fontWeightControl">
+                  <button class="seg-btn weight-btn" data-weight="300">Light</button>
+                  <button class="seg-btn weight-btn" data-weight="400">Regular</button>
+                  <button class="seg-btn weight-btn active" data-weight="600">Medium</button>
+                  <button class="seg-btn weight-btn" data-weight="700">Bold</button>
+                  <button class="seg-btn weight-btn" data-weight="900">Black</button>
+                </div>
+              </div>
+
+              <div class="control-group">
+                <div class="label-row">
+                  <label for="textColorPicker">文字色</label>
+                </div>
+                <div class="color-picker-row">
+                  <input type="color" id="textColorPicker" value="#2b2b2b">
+                  <div class="preset-colors">
+                    <span class="color-dot" style="background: #2b2b2b;" data-text-color="#2b2b2b"></span>
+                    <span class="color-dot" style="background: #ffffff;" data-text-color="#ffffff"></span>
+                    <span class="color-dot" style="background: #111111;" data-text-color="#111111"></span>
+                    <span class="color-dot" style="background: #e63946;" data-text-color="#e63946"></span>
+                    <span class="color-dot" style="background: #ffb703;" data-text-color="#ffb703"></span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-divider"></div>
+
+              <h2 class="pane-title" style="font-size: 13.5px; margin-bottom: 12px;">文字背景ボックス (色ベタ)</h2>
+
+              <!-- Text Background Enable Toggle -->
+              <div class="control-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="textBgCheck">
+                  <span>文字の背景に色ベタの四角を敷く</span>
+                </label>
+              </div>
+
+              <div id="textBgControlsGroup" style="display: none;">
+                <!-- Text Background Color -->
+                <div class="control-group">
+                  <div class="label-row">
+                    <label for="textBgColorPicker">背景ベタ色</label>
+                  </div>
+                  <div class="color-picker-row">
+                    <input type="color" id="textBgColorPicker" value="#111111">
+                    <div class="preset-colors">
+                      <span class="color-dot" style="background: #111111;" data-text-bg-color="#111111"></span>
+                      <span class="color-dot" style="background: #ffffff;" data-text-bg-color="#ffffff"></span>
+                      <span class="color-dot" style="background: #f7f4ec;" data-text-bg-color="#f7f4ec"></span>
+                      <span class="color-dot" style="background: #e63946;" data-text-bg-color="#e63946"></span>
+                      <span class="color-dot" style="background: #ffb703;" data-text-bg-color="#ffb703"></span>
+                      <span class="color-dot" style="background: #118ab2;" data-text-bg-color="#118ab2"></span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Horizontal Spacing (左右のアキ) -->
+                <div class="control-group">
+                  <div class="label-row">
+                    <label for="textPadXSlider">左右のアキ (横パディング)</label>
+                    <span id="textPadXVal" class="val-badge">8px (ギリギリ)</span>
+                  </div>
+                  <input type="range" id="textPadXSlider" min="0" max="80" value="8">
+                </div>
+
+                <!-- Vertical Spacing (上下のアキ) -->
+                <div class="control-group">
+                  <div class="label-row">
+                    <label for="textPadYSlider">上下のアキ (縦パディング)</label>
+                    <span id="textPadYVal" class="val-badge">4px (ギリギリ)</span>
+                  </div>
+                  <input type="range" id="textPadYSlider" min="0" max="60" value="4">
+                </div>
+
+                <!-- Corner Radius (四角の角丸) -->
+                <div class="control-group">
+                  <div class="label-row">
+                    <label for="textBgRadiusSlider">角丸 (四角 / 丸み)</label>
+                    <span id="textBgRadiusVal" class="val-badge">0px (完全な四角)</span>
+                  </div>
+                  <input type="range" id="textBgRadiusSlider" min="0" max="36" value="0">
+                </div>
+              </div>
+
+              <div class="section-divider"></div>
+
+              <div class="control-group">
+                <div class="label-row">
+                  <label>位置プリセット</label>
+                  <button id="resetTextPosBtn" class="btn-text">初期位置に戻す</button>
+                </div>
+                <div class="segmented-control" id="textPosControl">
+                  <button class="seg-btn pos-btn" data-pos="top">上部</button>
+                  <button class="seg-btn pos-btn" data-pos="center">中央</button>
+                  <button class="seg-btn pos-btn active" data-pos="bottom">枠の下部</button>
+                  <button class="seg-btn pos-btn" data-pos="footer">最下部</button>
+                </div>
+                <p class="control-hint">💡 プレビュー画面上のテキストを直接ドラッグして好きな場所に自由に配置できます</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
