@@ -6,37 +6,36 @@
   <title>StoryFrame Studio - インスタストーリー枠メーカー</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+JP:wght@300;400;500;700;900&family=Share+Tech+Mono&family=Zen+Old+Mincho:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+JP:wght@300;400;500;700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Share+Tech+Mono&family=Space+Grotesk:wght@400;500;600;700&family=Zen+Old+Mincho:wght@400;500;600;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app-layout">
-    <!-- Header -->
+    <!-- Header / Editorial Masthead -->
     <header class="app-header">
       <div class="logo">
-        <span class="logo-badge">9:16</span>
-        <h1>StoryFrame<span class="logo-studio"> Studio</span></h1>
+        <span class="logo-symbol">✦</span>
+        <h1>STORYFRAME<span class="logo-studio"> STUDIO</span></h1>
+        <span class="logo-badge">ISSUE 01 · 9:16</span>
       </div>
       <div class="header-actions">
-        <label for="headerPhotoUpload" class="btn btn-accent" title="写真を選択 / 変更">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          <span class="btn-label-long">写真を選択 / 変更</span>
-          <span class="btn-label-short">写真変更</span>
+        <label for="headerPhotoUpload" class="btn btn-secondary" title="写真を選択 / 変更">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span class="btn-label-long">写真を選択</span>
+          <span class="btn-label-short">写真</span>
         </label>
         <input type="file" id="headerPhotoUpload" accept="image/*" hidden>
-        <button id="resetBtn" class="btn btn-secondary">リセット</button>
+        <button id="resetBtn" class="btn btn-ghost">リセット</button>
         <button id="downloadBtn" class="btn btn-primary">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span class="btn-label-long">ストーリー保存 (1080×1920)</span>
           <span class="btn-label-short">保存</span>
         </button>
         <!-- 三点リーダーボタン（スマホ用メニュー開閉） -->
         <button type="button" id="mobileMenuToggleBtn" class="mobile-menu-btn" title="メニューを開く" aria-label="メニューを開く">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="5" cy="12" r="2.2"/>
-            <circle cx="12" cy="12" r="2.2"/>
-            <circle cx="19" cy="12" r="2.2"/>
-          </svg>
+          <span class="mobile-menu-dots">
+            <i></i><i></i><i></i>
+          </span>
         </button>
       </div>
     </header>
@@ -45,13 +44,28 @@
     <main class="app-main">
       <!-- Preview Canvas Area -->
       <section class="preview-section">
+        <!-- Studio Editorial Metadata Header (Desktop) -->
+        <div class="studio-masthead-meta">
+          <span class="meta-item"><span class="meta-dot"></span>CANVAS 01</span>
+          <span class="meta-sep">/</span>
+          <span class="meta-item">STORY FRAME STUDIO</span>
+          <span class="meta-sep">/</span>
+          <span class="meta-item meta-mono">1080 × 1920 PX · 9:16 VERTICAL</span>
+        </div>
+
         <div class="preview-container">
           <div class="canvas-wrapper" id="canvasWrapper">
+            <!-- Architectural Corner Crop Marks -->
+            <span class="crop-mark top-left"></span>
+            <span class="crop-mark top-right"></span>
+            <span class="crop-mark bottom-left"></span>
+            <span class="crop-mark bottom-right"></span>
+
             <canvas id="mainCanvas" width="1080" height="1920"></canvas>
             
             <!-- Floating Change Photo Button (Always Accessible on Preview) -->
             <label for="floatingPhotoUpload" class="floating-photo-btn" title="写真を選択 / 変更">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               <span>写真変更</span>
             </label>
             <input type="file" id="floatingPhotoUpload" accept="image/*" hidden>
@@ -59,29 +73,25 @@
             <!-- Drag & Drop Overlay when empty -->
             <div id="dropZonePrompt" class="drop-prompt">
               <div class="drop-icon">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
               </div>
               <p class="drop-title">写真をドラッグ＆ドロップ</p>
-              <p class="drop-desc">またはファイルを選択してください</p>
-              <label for="imageUpload" class="btn btn-accent file-select-label">写真を選択</label>
+              <p class="drop-desc">1080 × 1920 ストーリー比率で美しく配置します</p>
+              <label for="imageUpload" class="btn btn-primary file-select-label">写真を選択する</label>
               <input type="file" id="imageUpload" accept="image/*" hidden>
             </div>
           </div>
         </div>
 
         <div class="canvas-hints">
-          <span class="hint-desktop">💡 写真やテキストをドラッグで移動 / ホイールで拡大縮小</span>
-          <span class="hint-mobile">💡 ドラッグで移動 / 2本指ピンチで拡大縮小</span>
+          <span class="hint-desktop">✦ 写真やテキストをドラッグで移動 / ホイールでズーム</span>
+          <span class="hint-mobile">✦ ドラッグで移動 / 2本指ピンチでズーム</span>
         </div>
 
         <!-- フローティング メニュー開閉ボタン（スマホ全画面プレビュー時） -->
         <button type="button" id="mobileMenuOpenBtn" class="mobile-menu-pill" title="枠・文字・フィルターを編集">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="5" cy="12" r="2.2"/>
-            <circle cx="12" cy="12" r="2.2"/>
-            <circle cx="19" cy="12" r="2.2"/>
-          </svg>
-          <span>メニューを開く</span>
+          <span class="pill-symbol">✦</span>
+          <span>編集メニュー</span>
         </button>
       </section>
 
@@ -92,11 +102,11 @@
           <div class="drawer-handle-bar"></div>
           <div class="drawer-header-row">
             <span class="drawer-title">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-              編集メニュー
+              <span class="drawer-title-dot">✦</span>
+              EDIT MENU
             </span>
             <div class="drawer-actions">
-              <button type="button" id="drawerResetBtn" class="btn-text danger" style="font-size: 12px; margin-right: 12px;">リセット</button>
+              <button type="button" id="drawerResetBtn" class="btn-text danger" style="font-size: 11.5px; margin-right: 12px;">初期化</button>
               <button type="button" id="closeDrawerBtn" class="drawer-close-btn" aria-label="閉じる">
                 <span>閉じる ✕</span>
               </button>
@@ -104,17 +114,32 @@
           </div>
         </div>
         <div class="tabs">
-          <button class="tab-btn active" data-tab="presets">フレーム</button>
-          <button class="tab-btn" data-tab="filters">フィルター</button>
-          <button class="tab-btn" data-tab="image">写真・配置</button>
-          <button class="tab-btn" data-tab="style">枠スタイル</button>
-          <button class="tab-btn" data-tab="text">テキスト</button>
+          <button class="tab-btn active" data-tab="presets">
+            <span class="tab-idx">01</span>
+            <span class="tab-label">フレーム</span>
+          </button>
+          <button class="tab-btn" data-tab="filters">
+            <span class="tab-idx">02</span>
+            <span class="tab-label">フィルター</span>
+          </button>
+          <button class="tab-btn" data-tab="image">
+            <span class="tab-idx">03</span>
+            <span class="tab-label">写真・配置</span>
+          </button>
+          <button class="tab-btn" data-tab="style">
+            <span class="tab-idx">04</span>
+            <span class="tab-label">枠スタイル</span>
+          </button>
+          <button class="tab-btn" data-tab="text">
+            <span class="tab-idx">05</span>
+            <span class="tab-label">テキスト</span>
+          </button>
         </div>
 
         <div class="tab-contents">
           <!-- TAB 1: PRESETS -->
           <div class="tab-pane active" id="pane-presets">
-            <h2 class="pane-title">フレームプリセット</h2>
+            <h2 class="pane-title"><span class="pane-num">01</span> フレームプリセット</h2>
             <div class="preset-grid">
               <button class="preset-card active" data-preset="polaroid">
                 <div class="preset-thumb polaroid-thumb"></div>
@@ -152,7 +177,7 @@
           <!-- TAB 2: FILTERS & ADJUSTMENTS -->
           <div class="tab-pane" id="pane-filters">
             <div class="pane-header-row">
-              <h2 class="pane-title">フィルム風フィルター</h2>
+              <h2 class="pane-title"><span class="pane-num">02</span> フィルム風フィルター</h2>
               <button id="resetFiltersBtn" class="btn-text">補正を初期化</button>
             </div>
 
@@ -402,9 +427,9 @@
             </div>
           </div>
 
-          <!-- TAB 2: IMAGE ADJUSTMENT -->
+          <!-- TAB 3: IMAGE ADJUSTMENT -->
           <div class="tab-pane" id="pane-image">
-            <h2 class="pane-title">写真の選択・配置</h2>
+            <h2 class="pane-title"><span class="pane-num">03</span> 写真の選択・配置</h2>
 
             <!-- Instagram風 横並び配置・背景ツールバー (スマホ用) -->
             <div class="insta-adjust-strip" id="instaImageStrip">
@@ -490,8 +515,8 @@
 
           <!-- TAB 3: FRAME STYLE -->
           <div class="tab-pane" id="pane-style">
-            <h2 class="pane-title">枠のカスタマイズ</h2>
-            <p id="fs23FixedNote" class="control-hint hidden" style="color: #00d2ff; background: rgba(0, 210, 255, 0.08); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(0, 210, 255, 0.2); margin-bottom: 14px;">ℹ️ 「FS_2&3」は枠の太さはデザイン固定ですが、枠の色や文字内容は自由に変更できます。</p>
+            <h2 class="pane-title"><span class="pane-num">04</span> 枠スタイル & 余白</h2>
+            <p id="fs23FixedNote" class="control-hint hidden fs-note-banner">ℹ️ 「FS_2&3」は枠の太さはデザイン固定ですが、枠の色や文字内容は自由に変更できます。</p>
 
             <div class="control-group">
               <div class="label-row">
@@ -548,7 +573,7 @@
             <div id="fs23ControlsSection" class="hidden">
               <div class="section-divider"></div>
               <div class="pane-header-row" style="margin-bottom: 6px;">
-                <h2 class="pane-title" style="font-size: 14px; color: #1bb9ee;">FS_2&3 タイポグラフィ構成</h2>
+                <h2 class="pane-title" style="font-size: 12px; color: var(--accent-cobalt);"><span class="pane-num">FS</span> FS_2&3 タイポグラフィ構成</h2>
                 <button id="resetFs23TextBtn" class="btn-text">初期値に戻す</button>
               </div>
               <p class="control-hint" style="margin-bottom: 12px; font-size: 12px; color: var(--text-muted); line-height: 1.4;">
@@ -690,9 +715,9 @@
             </div>
           </div>
 
-          <!-- TAB 4: TEXT -->
+          <!-- TAB 5: TEXT -->
           <div class="tab-pane" id="pane-text">
-            <h2 class="pane-title">キャプション / 日付</h2>
+            <h2 class="pane-title"><span class="pane-num">05</span> キャプション / 日付</h2>
 
             <div class="control-group">
               <label class="checkbox-label">

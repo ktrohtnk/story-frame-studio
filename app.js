@@ -2738,7 +2738,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 3. ドラッグ中またはホバー時に編集枠を表示
     if (state.dragTarget === 'text' || state.isHoveringText) {
-      ctx.strokeStyle = 'rgba(255, 71, 133, 0.85)';
+      ctx.strokeStyle = 'rgba(29, 78, 216, 0.9)';
       ctx.lineWidth = 2;
       ctx.setLineDash([8, 6]);
       roundRect(ctx, bounds.x, bounds.y, bounds.width, bounds.height, state.text.bgRadius || 0);
