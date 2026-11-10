@@ -5,21 +5,21 @@
    ======================================================== */
 
 :root {
-  /* --- Base Palette: Studio Neutral Gray, Off-white, Charcoal --- */
-  --bg-workspace: #e4e6ea;         /* Studio architectural neutral gray (replaces cream) */
-  --bg-surface: #ffffff;           /* Clean crisp paper */
-  --bg-card: #f4f5f7;              /* Subtle neutral card surface */
-  --bg-hover: #eaebee;             /* Clean neutral hover */
-  --bg-muted: #dcdee2;             /* Neutral well & slider track */
+  /* --- Base Palette: Editorial Warm Greige, Off-white Paper, Charcoal --- */
+  --bg-workspace: #ded9ce;         /* Studio architectural warm greige (darker warm tone) */
+  --bg-surface: #faf9f5;           /* Clean warm off-white paper */
+  --bg-card: #f3f1eb;              /* Subtle warm card surface */
+  --bg-hover: #eae6dc;             /* Warm tactile hover */
+  --bg-muted: #d8d3c5;             /* Warm well & slider track */
   --bg-input: #ffffff;             /* Crisp clean input ground */
 
   --ink-primary: #141416;          /* Deep ink charcoal for maximum editorial contrast */
-  --ink-secondary: #4e5156;        /* Editorial body & subtitles */
-  --ink-muted: #7e828a;            /* Micro-labels & parameters */
-  --ink-faint: #afb3bb;            /* Subtle borders & non-obtrusive metadata */
+  --ink-secondary: #4a4944;        /* Editorial body & subtitles */
+  --ink-muted: #7e7b74;            /* Micro-labels & parameters */
+  --ink-faint: #aba79d;            /* Subtle borders & non-obtrusive metadata */
 
-  --border-color: #dcdfe4;         /* Crisp 1px hairline border */
-  --border-subtle: #e8eaee;        /* Ultra-light hairline */
+  --border-color: #d2ccc0;         /* Crisp 1px hairline border */
+  --border-subtle: #e2ded5;        /* Ultra-light hairline */
   --border-focus: #141416;         /* High-contrast active hairline */
 
   /* --- Accent Palette (Semantic, Bold, Disciplined) --- */
@@ -439,7 +439,7 @@ body {
 .drop-prompt {
   position: absolute;
   inset: 0;
-  background: rgba(244, 245, 248, 0.96);
+  background: rgba(243, 241, 235, 0.96);
   backdrop-filter: blur(8px);
   display: flex;
   flex-direction: column;
