@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     imgRotation: 0,
     
     // Preset & Frames
+    activeTab: 'presets',
     preset: 'polaroid',
     customOverlay: null,
 
@@ -1575,8 +1576,13 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
+      state.activeTab = btn.dataset.tab;
       const pane = document.getElementById(`pane-${btn.dataset.tab}`);
       if (pane) pane.classList.add('active');
+      if (canvasWrapper) {
+        canvasWrapper.style.cursor = isTextTabActive() ? 'default' : 'grab';
+      }
+      render();
     });
   });
 
@@ -1957,16 +1963,31 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
+  // --- Active Tab & Text Hit-Test Helpers ---
+  function isTextTabActive() {
+    return state.activeTab === 'text' || document.querySelector('.tab-btn.active')?.dataset.tab === 'text';
+  }
+
+  function isPointInText(pos, bounds, inTextTab = false) {
+    if (!bounds) return false;
+    // テキストタブ時は指先での操作がよりスムーズになるよう、当たり判定を広めに拡張 (40px)
+    const margin = inTextTab ? 40 : 16;
+    return pos.x >= bounds.x - margin &&
+           pos.x <= bounds.x + bounds.width + margin &&
+           pos.y >= bounds.y - margin &&
+           pos.y <= bounds.y + bounds.height + margin;
+  }
+
   function onPointerDown(e) {
     const pos = getCanvasCoord(e);
     const rect = getPhotoRect();
     const W = canvas.width;
     const H = canvas.height;
+    const inTextTab = isTextTabActive();
 
-    // 1. テキストのクリック判定 (Hit Testing)
+    // 1. テキストのクリック・タッチ判定 (Hit Testing)
     const textBounds = getTextBounds(rect, W, H);
-    if (textBounds && pos.x >= textBounds.x && pos.x <= textBounds.x + textBounds.width &&
-        pos.y >= textBounds.y && pos.y <= textBounds.y + textBounds.height) {
+    if (isPointInText(pos, textBounds, inTextTab)) {
       state.isDragging = true;
       state.dragTarget = 'text';
       state.dragStartX = pos.x;
@@ -1982,7 +2003,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // 2. テキストでなければ写真のドラッグ
+    // 2. テキスト編集タブ選択中は、写真の移動・ドラッグを完全ロック（テキスト項目時は写真を一切動かさない）
+    if (inTextTab) {
+      return;
+    }
+
+    // 3. テキストタブ以外なら写真のドラッグ
     if (state.image) {
       state.isDragging = true;
       state.dragTarget = 'image';
@@ -2017,15 +2043,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // ホバー時のカーソル判定
     const rect = getPhotoRect();
     const textBounds = getTextBounds(rect, canvas.width, canvas.height);
-    if (textBounds && pos.x >= textBounds.x && pos.x <= textBounds.x + textBounds.width &&
-        pos.y >= textBounds.y && pos.y <= textBounds.y + textBounds.height) {
+    const inTextTab = isTextTabActive();
+    const isOverText = isPointInText(pos, textBounds, inTextTab);
+
+    if (isOverText) {
       canvasWrapper.style.cursor = 'move';
       if (!state.isHoveringText) {
         state.isHoveringText = true;
         render();
       }
     } else {
-      canvasWrapper.style.cursor = 'grab';
+      canvasWrapper.style.cursor = inTextTab ? 'default' : 'grab';
       if (state.isHoveringText) {
         state.isHoveringText = false;
         render();
@@ -2036,7 +2064,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function onPointerUp() {
     state.isDragging = false;
     state.dragTarget = null;
-    canvasWrapper.style.cursor = 'grab';
+    canvasWrapper.style.cursor = isTextTabActive() ? 'default' : 'grab';
     render();
   }
 
@@ -2047,6 +2075,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function onTouchStart(e) {
     if (e.touches.length === 2) {
+      // テキスト編集タブ時は写真のピンチズームも防止
+      if (isTextTabActive()) {
+        isPinching = false;
+        e.preventDefault();
+        return;
+      }
       isPinching = true;
       state.isDragging = false;
       state.dragTarget = null;
@@ -2065,6 +2099,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function onTouchMove(e) {
+    if (isTextTabActive() && isPinching) {
+      e.preventDefault();
+      return;
+    }
     if (isPinching && e.touches.length === 2) {
       e.preventDefault();
       const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -2108,6 +2146,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Wheel zoom
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
+    if (isTextTabActive()) return; // テキスト編集タブ時は写真ズームを防止
     if (!state.image) return;
     const zoomDelta = e.deltaY * -0.001;
     let newPercent = parseInt(scaleSlider.value, 10) + zoomDelta * 50;
