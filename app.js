@@ -470,6 +470,18 @@ document.addEventListener('DOMContentLoaded', () => {
       grade: '2nd & 3rd grade',
       weight: 800
     },
+    visual: {
+      prefix: 'FDS/',
+      title: 'VISUAL DESIGN',
+      grade: '2nd & 3rd grade',
+      weight: 800
+    },
+    first_year: {
+      prefix: 'FDS/',
+      title: '1st Year Class',
+      grade: '',
+      weight: 800
+    },
     '1st': {
       prefix: 'FDS/',
       title: 'FORM AND SPACE DESIGN',
@@ -618,6 +630,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.fs-sides-btn').forEach(b => {
           b.classList.toggle('active', b.dataset.sides === state.fsBorderSides);
         });
+        syncFsChips();
       }
     }
 
@@ -2063,9 +2076,48 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // チップのアクティブ状態を同期
+  function syncFsChips() {
+    document.querySelectorAll('.chip-btn[data-fs-title]').forEach(chip => {
+      chip.classList.toggle('active', chip.dataset.fsTitle === state.fsTextTitle);
+    });
+    document.querySelectorAll('.chip-btn[data-fs-grade]').forEach(chip => {
+      chip.classList.toggle('active', chip.dataset.fsGrade === state.fsTextGrade);
+    });
+  }
+
+  // メインタイトル（専攻名）プリセットチップ (FORM AND SPACE DESIGN / VISUAL DESIGN / 1st Year Class)
+  document.querySelectorAll('.chip-btn[data-fs-title]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      state.fsTextTitle = chip.dataset.fsTitle;
+      if (fsTitleInput) fsTitleInput.value = state.fsTextTitle;
+      // 1st Year Classが選ばれた場合、学年欄が2nd & 3rd gradeのままなら空欄にして重複を防ぐ
+      if (state.fsTextTitle === '1st Year Class' && state.fsTextGrade === '2nd & 3rd grade') {
+        state.fsTextGrade = '';
+        if (fsGradeInput) fsGradeInput.value = '';
+      } else if (state.fsTextTitle !== '1st Year Class' && !state.fsTextGrade) {
+        state.fsTextGrade = '2nd & 3rd grade';
+        if (fsGradeInput) fsGradeInput.value = state.fsTextGrade;
+      }
+      syncFsChips();
+      render();
+    });
+  });
+
+  // 学年 / サブ情報プリセットチップ (2nd & 3rd grade / 1st Year Class / 1st grade / 空白)
+  document.querySelectorAll('.chip-btn[data-fs-grade]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      state.fsTextGrade = chip.dataset.fsGrade;
+      if (fsGradeInput) fsGradeInput.value = state.fsTextGrade;
+      syncFsChips();
+      render();
+    });
+  });
+
   if (fsTitleInput) {
     fsTitleInput.addEventListener('input', (e) => {
       state.fsTextTitle = e.target.value;
+      syncFsChips();
       render();
     });
   }
@@ -2073,6 +2125,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (fsGradeInput) {
     fsGradeInput.addEventListener('input', (e) => {
       state.fsTextGrade = e.target.value;
+      syncFsChips();
       render();
     });
   }
@@ -2113,6 +2166,7 @@ document.addEventListener('DOMContentLoaded', () => {
           b.classList.toggle('active', parseInt(b.dataset.fsWeight, 10) === state.fsTitleWeight);
         });
 
+        syncFsChips();
         render();
       }
     });
@@ -2207,6 +2261,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.fs-sides-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.sides === 'all');
       });
+      syncFsChips();
       render();
     });
   }
@@ -2376,6 +2431,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const formatted = formatDate(d, state.dateFormat);
       if (fsGradeInput) fsGradeInput.value = formatted;
       state.fsTextGrade = formatted;
+      syncFsChips();
       render();
     });
   }
@@ -2402,6 +2458,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const formatted = formatDate(d, state.dateFormat);
         if (fsGradeInput) fsGradeInput.value = formatted;
         state.fsTextGrade = formatted;
+        syncFsChips();
         render();
       }
     });

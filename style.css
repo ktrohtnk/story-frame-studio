@@ -669,6 +669,14 @@ input[type="range"]::-webkit-slider-thumb:hover {
   border-color: rgba(255, 255, 255, 0.25);
 }
 
+.chip-btn.active {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(255, 71, 133, 0.35);
+}
+
 /* Floating Photo Change Button on Preview Canvas */
 .floating-photo-btn {
   position: absolute;

@@ -417,17 +417,17 @@
                 「略号 (中太 500)」「専攻名 (極太 800)」「学年 (細字 400)」の3層ウェイトで構成されています。
               </p>
 
-              <!-- クイックテンプレート（学年・展示のワンタップ選択） -->
+              <!-- クイックテンプレート（専攻・学年のワンタップ選択） -->
               <div class="control-group">
                 <div class="label-row">
-                  <label>学年・プリセット</label>
+                  <label>専攻・学年プリセット</label>
                 </div>
                 <div class="chip-group" id="fsTemplateChips">
-                  <button class="chip-btn active" data-fs-template="default">2nd & 3rd (標準)</button>
-                  <button class="chip-btn" data-fs-template="1st">1st grade (1年)</button>
-                  <button class="chip-btn" data-fs-template="4th">4th grade (4年)</button>
-                  <button class="chip-btn" data-fs-template="grad">卒業制作展</button>
-                  <button class="chip-btn" data-fs-template="arch">Architecture</button>
+                  <button type="button" class="chip-btn active" data-fs-template="default">FORM AND SPACE (2・3年)</button>
+                  <button type="button" class="chip-btn" data-fs-template="visual">VISUAL DESIGN (2・3年)</button>
+                  <button type="button" class="chip-btn" data-fs-template="first_year">1st Year Class (1年)</button>
+                  <button type="button" class="chip-btn" data-fs-template="grad">卒業制作展</button>
+                  <button type="button" class="chip-btn" data-fs-template="arch">Architecture</button>
                 </div>
               </div>
 
@@ -446,6 +446,12 @@
                   <label for="fsTitleInput">② メインタイトル / 専攻名</label>
                   <span id="fsTitleWeightBadge" class="val-badge" style="background: rgba(255,255,255,0.14); font-weight: 800; color: #ffd166;">ExtraBold 800 (太字)</span>
                 </div>
+                <!-- FORM AND SPACE DESIGN / VISUAL DESIGN / 1st Year Class プリセット -->
+                <div class="chip-group fs-title-chips" id="fsTitlePresets" style="margin-bottom: 8px;">
+                  <button type="button" class="chip-btn active" data-fs-title="FORM AND SPACE DESIGN">FORM AND SPACE DESIGN</button>
+                  <button type="button" class="chip-btn" data-fs-title="VISUAL DESIGN">VISUAL DESIGN</button>
+                  <button type="button" class="chip-btn" data-fs-title="1st Year Class">1st Year Class</button>
+                </div>
                 <input type="text" id="fsTitleInput" class="text-input" value="FORM AND SPACE DESIGN" placeholder="例: FORM AND SPACE DESIGN">
               </div>
 
@@ -458,6 +464,12 @@
                     <button type="button" id="fsCalendarBtn" class="date-btn" title="カレンダーから日付を選択">カレンダー</button>
                     <input type="date" id="fsDatePickerInput" style="position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none;">
                   </div>
+                </div>
+                <div class="chip-group fs-grade-chips" id="fsGradePresets" style="margin-bottom: 8px;">
+                  <button type="button" class="chip-btn active" data-fs-grade="2nd & 3rd grade">2nd & 3rd grade</button>
+                  <button type="button" class="chip-btn" data-fs-grade="1st Year Class">1st Year Class</button>
+                  <button type="button" class="chip-btn" data-fs-grade="1st grade">1st grade</button>
+                  <button type="button" class="chip-btn" data-fs-grade="">なし (空白)</button>
                 </div>
                 <input type="text" id="fsGradeInput" class="text-input" value="2nd & 3rd grade" placeholder="例: 2nd & 3rd grade または日付">
               </div>
