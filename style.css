@@ -1063,7 +1063,16 @@ input[type="color"]::-webkit-color-swatch {
     max-height: 100%;
     max-width: 100%;
     aspect-ratio: 9 / 16;
+    flex-shrink: 0;
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.75);
+  }
+
+  #mainCanvas {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 9 / 16;
+    object-fit: contain;
+    display: block;
   }
 
   .canvas-hints {

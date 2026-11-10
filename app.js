@@ -943,6 +943,10 @@ document.addEventListener('DOMContentLoaded', () => {
       c.classList.toggle('active', c.dataset.preset === name);
     });
 
+    if (state.image) {
+      resetImageTransform('fill');
+    }
+
     render();
   }
 
@@ -969,7 +973,7 @@ document.addEventListener('DOMContentLoaded', () => {
     reader.readAsDataURL(file);
   }
 
-  function resetImageTransform(mode = 'fit') {
+  function resetImageTransform(mode = 'fill') {
     if (!state.image) return;
     state.imgRotation = 0;
     rotateSlider.value = 0;
@@ -996,38 +1000,38 @@ document.addEventListener('DOMContentLoaded', () => {
     scaleVal.textContent = '100%';
   }
 
-  // --- Initial Default Sample Image (Gradient Art) ---
+  // --- Initial Default Sample Image (9:16 Vertical Gradient Art) ---
   function createDefaultSampleImage() {
     const sampleCanvas = document.createElement('canvas');
-    sampleCanvas.width = 1200;
-    sampleCanvas.height = 1500;
+    sampleCanvas.width = 1080;
+    sampleCanvas.height = 1920;
     const sctx = sampleCanvas.getContext('2d');
 
-    // Chic gradient & abstract circles
-    const grad = sctx.createLinearGradient(0, 0, 1200, 1500);
+    // Chic gradient & abstract circles (9:16 vertical)
+    const grad = sctx.createLinearGradient(0, 0, 1080, 1920);
     grad.addColorStop(0, '#ff9a9e');
     grad.addColorStop(0.5, '#fecfef');
     grad.addColorStop(1, '#a1c4fd');
     sctx.fillStyle = grad;
-    sctx.fillRect(0, 0, 1200, 1500);
+    sctx.fillRect(0, 0, 1080, 1920);
 
     // Warm Sun circle
     sctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
     sctx.beginPath();
-    sctx.arc(600, 650, 320, 0, Math.PI * 2);
+    sctx.arc(540, 860, 320, 0, Math.PI * 2);
     sctx.fill();
 
     // Geometric lines
     sctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
     sctx.lineWidth = 14;
     sctx.beginPath();
-    sctx.arc(600, 650, 420, 0, Math.PI * 2);
+    sctx.arc(540, 860, 420, 0, Math.PI * 2);
     sctx.stroke();
 
     const img = new Image();
     img.onload = () => {
       state.image = img;
-      resetImageTransform();
+      resetImageTransform('fill');
       render();
     };
     img.src = sampleCanvas.toDataURL();
@@ -2881,12 +2885,44 @@ document.addEventListener('DOMContentLoaded', () => {
   const drawerResetBtn = document.getElementById('drawerResetBtn');
   const drawerHeader = document.getElementById('drawerHeader');
 
+  const previewContainer = document.querySelector('.preview-container');
+
+  // Ensure .canvas-wrapper always maintains exact 9:16 dimensions on iOS Safari & Mobile
+  function updateCanvasWrapperSize() {
+    if (!previewContainer || !canvasWrapper) return;
+    const availW = previewContainer.clientWidth;
+    const availH = previewContainer.clientHeight;
+    if (availW <= 0 || availH <= 0) return;
+
+    const targetRatio = 9 / 16;
+    let w = availH * targetRatio;
+    let h = availH;
+    if (w > availW) {
+      w = availW;
+      h = availW / targetRatio;
+    }
+    canvasWrapper.style.width = `${Math.floor(w)}px`;
+    canvasWrapper.style.height = `${Math.floor(h)}px`;
+  }
+
+  if (window.ResizeObserver && previewContainer) {
+    const ro = new ResizeObserver(() => {
+      updateCanvasWrapperSize();
+    });
+    ro.observe(previewContainer);
+  }
+  window.addEventListener('resize', updateCanvasWrapperSize);
+  window.addEventListener('orientationchange', () => {
+    setTimeout(updateCanvasWrapperSize, 100);
+  });
+
   function openMobileMenu() {
     if (!controlSidebar) return;
     controlSidebar.classList.add('mobile-open');
     if (sidebarBackdrop) sidebarBackdrop.classList.add('active');
     if (mobileMenuToggleBtn) mobileMenuToggleBtn.classList.add('active');
     if (mobileMenuOpenBtn) mobileMenuOpenBtn.style.opacity = '0';
+    requestAnimationFrame(updateCanvasWrapperSize);
   }
 
   function closeMobileMenu() {
@@ -2895,6 +2931,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (sidebarBackdrop) sidebarBackdrop.classList.remove('active');
     if (mobileMenuToggleBtn) mobileMenuToggleBtn.classList.remove('active');
     if (mobileMenuOpenBtn) mobileMenuOpenBtn.style.opacity = '1';
+    requestAnimationFrame(updateCanvasWrapperSize);
   }
 
   function toggleMobileMenu() {
@@ -2981,6 +3018,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --- Boot: Initialize immediately, then re-render when fonts load ---
+  updateCanvasWrapperSize();
   createDefaultSampleImage();
   applyPreset('polaroid');
   applyFilterPreset('normal');
