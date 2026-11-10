@@ -67,6 +67,10 @@ document.addEventListener('DOMContentLoaded', () => {
       bgRadius: 0         // 四角の角丸 (デフォルト0px: 完全な四角)
     },
 
+    // Date Picker State
+    selectedDate: new Date(),
+    dateFormat: 'eng',    // 'eng', 'dot', 'slash', 'film', 'jp'
+
     // FS_2&3 Frame Graphic Settings (ベクター描画・3層タイポグラフィ)
     fsTextPrefix: 'FDS/',
     fsTextTitle: 'FORM AND SPACE DESIGN',
@@ -126,6 +130,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const textBgRadiusSlider = document.getElementById('textBgRadiusSlider');
   const textBgRadiusVal = document.getElementById('textBgRadiusVal');
   const todayDateBtn = document.getElementById('todayDateBtn');
+  const calendarBtn = document.getElementById('calendarBtn');
+  const datePickerInput = document.getElementById('datePickerInput');
   const resetTextPosBtn = document.getElementById('resetTextPosBtn');
 
   // FS_2&3 Graphic Controls
@@ -137,6 +143,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const fsTitleWeightBadge = document.getElementById('fsTitleWeightBadge');
   const fsTitleColorPicker = document.getElementById('fsTitleColorPicker');
   const fsGradeColorPicker = document.getElementById('fsGradeColorPicker');
+  const fsTodayDateBtn = document.getElementById('fsTodayDateBtn');
+  const fsCalendarBtn = document.getElementById('fsCalendarBtn');
+  const fsDatePickerInput = document.getElementById('fsDatePickerInput');
   const resetFs23TextBtn = document.getElementById('resetFs23TextBtn');
 
   const imageUpload = document.getElementById('imageUpload');
@@ -2208,14 +2217,120 @@ document.addEventListener('DOMContentLoaded', () => {
     render();
   });
 
-  todayDateBtn.addEventListener('click', () => {
-    const now = new Date();
+  // --- Date Formatting Helper ---
+  function formatDate(d, fmt = 'eng') {
+    if (!(d instanceof Date) || isNaN(d.getTime())) d = new Date();
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const date = d.getDate();
+    const m2 = String(month + 1).padStart(2, '0');
+    const d2 = String(date).padStart(2, '0');
     const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-    const formatted = `${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
-    textInput.value = formatted;
-    state.text.content = formatted;
-    render();
+
+    switch (fmt) {
+      case 'eng':
+        return `${months[month]} ${date}, ${year}`;
+      case 'dot':
+        return `${year}.${m2}.${d2}`;
+      case 'slash':
+        return `${year}/${m2}/${d2}`;
+      case 'film':
+        return `'${String(year).slice(-2)} ${m2} ${d2}`;
+      case 'jp':
+        return `${year}年${month + 1}月${date}日`;
+      default:
+        return `${months[month]} ${date}, ${year}`;
+    }
+  }
+
+  // --- Date Actions (Caption) ---
+  if (todayDateBtn) {
+    todayDateBtn.addEventListener('click', () => {
+      state.selectedDate = new Date();
+      const formatted = formatDate(state.selectedDate, state.dateFormat);
+      textInput.value = formatted;
+      state.text.content = formatted;
+      render();
+    });
+  }
+
+  if (calendarBtn && datePickerInput) {
+    calendarBtn.addEventListener('click', () => {
+      const d = state.selectedDate || new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      datePickerInput.value = `${y}-${m}-${day}`;
+      if (typeof datePickerInput.showPicker === 'function') {
+        datePickerInput.showPicker();
+      } else {
+        datePickerInput.click();
+      }
+    });
+
+    datePickerInput.addEventListener('change', (e) => {
+      if (!e.target.value) return;
+      const parts = e.target.value.split('-');
+      if (parts.length === 3) {
+        state.selectedDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        const formatted = formatDate(state.selectedDate, state.dateFormat);
+        textInput.value = formatted;
+        state.text.content = formatted;
+        render();
+      }
+    });
+  }
+
+  // Date Format Chips
+  document.querySelectorAll('#dateFormatChips .chip-btn').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#dateFormatChips .chip-btn').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      state.dateFormat = chip.dataset.dateFmt;
+      const formatted = formatDate(state.selectedDate, state.dateFormat);
+      textInput.value = formatted;
+      state.text.content = formatted;
+      render();
+    });
   });
+
+  // --- Date Actions for FS_2&3 Subtext ---
+  if (fsTodayDateBtn) {
+    fsTodayDateBtn.addEventListener('click', () => {
+      const d = new Date();
+      const formatted = formatDate(d, state.dateFormat);
+      if (fsGradeInput) fsGradeInput.value = formatted;
+      state.fsTextGrade = formatted;
+      render();
+    });
+  }
+
+  if (fsCalendarBtn && fsDatePickerInput) {
+    fsCalendarBtn.addEventListener('click', () => {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      fsDatePickerInput.value = `${y}-${m}-${day}`;
+      if (typeof fsDatePickerInput.showPicker === 'function') {
+        fsDatePickerInput.showPicker();
+      } else {
+        fsDatePickerInput.click();
+      }
+    });
+
+    fsDatePickerInput.addEventListener('change', (e) => {
+      if (!e.target.value) return;
+      const parts = e.target.value.split('-');
+      if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        const formatted = formatDate(d, state.dateFormat);
+        if (fsGradeInput) fsGradeInput.value = formatted;
+        state.fsTextGrade = formatted;
+        render();
+      }
+    });
+  }
 
   // --- Reset All ---
   resetBtn.addEventListener('click', () => {
