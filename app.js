@@ -481,9 +481,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function getBlurredCanvas(img, blurPx, maxDim, cacheObj) {
+  function getBlurredCanvas(img, blurPx, maxDim, cacheObj, extraKey = '') {
     if (!img || blurPx <= 0) return img;
-    if (cacheObj && cacheObj.img === img && cacheObj.blurPx === blurPx && cacheObj.canvas) {
+    if (
+      cacheObj &&
+      cacheObj.img === img &&
+      cacheObj.blurPx === blurPx &&
+      cacheObj.extraKey === extraKey &&
+      cacheObj.canvas
+    ) {
       return cacheObj.canvas;
     }
 
@@ -514,59 +520,234 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cacheObj) {
       cacheObj.img = img;
       cacheObj.blurPx = blurPx;
+      cacheObj.extraKey = extraKey;
       cacheObj.canvas = off;
     }
     return off;
   }
 
-  function applyBasicToneFallback(tctx, rx, ry, rw, rh, exposure, contrast, saturation) {
-    // 1. Exposure (Brightness)
-    if (exposure !== 0) {
-      tctx.save();
-      if (exposure > 0) {
-        const dodgeVal = Math.min(254, Math.max(0, Math.round(255 * (1 - 100 / (100 + exposure)))));
-        tctx.fillStyle = `rgb(${dodgeVal}, ${dodgeVal}, ${dodgeVal})`;
-        tctx.globalCompositeOperation = 'color-dodge';
-        tctx.fillRect(rx, ry, rw, rh);
-      } else {
-        tctx.fillStyle = '#000000';
-        tctx.globalAlpha = Math.min(1, Math.abs(exposure) / 100);
-        tctx.globalCompositeOperation = 'multiply';
-        tctx.fillRect(rx, ry, rw, rh);
+  // --- Lightroom / Instagram-Grade Filmic Tone & Color Grading Engine (Zero Highlight Clipping) ---
+  const gradedPhotoCache = {
+    img: null,
+    w: 0,
+    h: 0,
+    baseData: null,
+    outImageData: null,
+    outCanvas: null,
+    gradeKey: ''
+  };
+
+  function gradePixelsFilmic(src, dst) {
+    const ev = (state.exposure || 0) / 100;     // -1..1
+    const cont = (state.contrast || 0) / 100;   // -1..1
+    const hl = (state.highlights || 0) / 100;   // -1..1
+    const sh = (state.shadows || 0) / 100;      // -1..1
+    const wh = (state.whites || 0) / 100;       // -1..1
+    const bl = (state.blacks || 0) / 100;       // -1..1
+    const wm = (state.warmth || 0) / 100;       // -1..1
+    const sat = (state.saturation || 0) / 100;  // -1..1
+
+    const lutR = new Uint8Array(256);
+    const lutG = new Uint8Array(256);
+    const lutB = new Uint8Array(256);
+    const lumaGain = new Int32Array(256); // 1024 = 1.0x gain driven by pixel Luminance
+
+    // Filmic Exposure & S-Curve parameters (high-precision, smooth highlight roll-off)
+    const kExp = Math.pow(2, ev * 1.35);
+    const gammaExp = Math.pow(2, -ev * 0.45);
+    const alphaCont = Math.pow(2, cont * 0.72);
+    const hasLumaGain = (sh !== 0 || hl < 0);
+
+    for (let i = 0; i < 256; i++) {
+      const lNorm = i / 255;
+
+      // A. Luminance-Masked Shadows & Highlight Recovery (preserves exact color ratios!)
+      let lTarget = lNorm;
+      if (sh !== 0) {
+        const inv = 1 - lNorm;
+        const shMask = inv * inv * inv; // strictly targets shadows without washing out highlights
+        if (sh > 0) {
+          lTarget += sh * 0.34 * shMask * Math.pow(Math.max(0.02, lNorm), 0.35);
+        } else {
+          lTarget += sh * 0.30 * shMask * lNorm;
+        }
       }
-      tctx.restore();
+      if (hl < 0) {
+        // Highlight recovery: smoothly pulls down bright tones to prevent/recover blowout
+        const hlMask = lNorm * lNorm * (0.65 + 0.35 * lNorm);
+        lTarget += hl * 0.32 * hlMask;
+      }
+      lTarget = Math.max(0, Math.min(1, lTarget));
+      lumaGain[i] = i > 0 ? Math.round((lTarget / lNorm) * 1024) : 1024;
+
+      // B. Per-Channel Filmic Tone Curve (0 -> 0, 1 -> 1, smooth highlight shoulder roll-off)
+      let x = lNorm;
+
+      // 1. Filmic Exposure (Rational shoulder + gamma: lifts midtones while protecting highlights from clipping)
+      if (ev !== 0) {
+        const rational = (x * kExp) / (1 + x * (kExp - 1));
+        const gamma = Math.pow(x, gammaExp);
+        x = rational * 0.78 + gamma * 0.22;
+        if (ev > 0) {
+          // Preserve highlight micro-contrast at upper end (200..255)
+          x -= ev * 0.06 * (x * x * (1 - x));
+        }
+      }
+
+      // 2. Positive Highlights (with strict (1 - x) shoulder protection so whites never blow out)
+      if (hl > 0) {
+        x += hl * 0.34 * (x * x * (1 - x));
+      }
+
+      x = Math.max(0, Math.min(1, x));
+
+      // 3. Filmic S-Curve Contrast (C1 smooth at 0.5, anchored at 0 and 1)
+      if (cont !== 0) {
+        if (x < 0.5) {
+          x = 0.5 * Math.pow(2 * x, alphaCont);
+        } else {
+          x = 1 - 0.5 * Math.pow(2 * (1 - x), alphaCont);
+        }
+      }
+
+      // 4. Whites (Soft-knee upper tone curve)
+      if (wh !== 0) {
+        if (wh > 0) {
+          const boost = 1 + wh * 0.85;
+          const lifted = (x * boost) / (1 + x * (boost - 1));
+          x = x + (lifted - x) * (x * x);
+        } else {
+          x += wh * 0.20 * (x * x * x);
+        }
+      }
+
+      // 5. Blacks (Filmic matte black lift / black point toe)
+      if (bl !== 0) {
+        const inv = 1 - x;
+        if (bl > 0) {
+          x += bl * 0.20 * Math.pow(inv, 2.4);
+        } else {
+          x += bl * 0.28 * inv * inv * x;
+        }
+      }
+
+      x = Math.max(0, Math.min(1, x));
+
+      // 6. Warmth (Planckian midtone-bell 4*x*(1-x) so pure blacks & pure whites never tint or clip)
+      const bell = 4 * x * (1 - x);
+      const rWarm = Math.max(0, Math.min(1, x + wm * 0.11 * bell));
+      const gWarm = Math.max(0, Math.min(1, x + wm * 0.025 * bell));
+      const bWarm = Math.max(0, Math.min(1, x - wm * 0.11 * bell));
+
+      lutR[i] = Math.round(rWarm * 255);
+      lutG[i] = Math.round(gWarm * 255);
+      lutB[i] = Math.round(bWarm * 255);
     }
 
-    // 2. Contrast
-    if (contrast !== 0) {
-      tctx.save();
-      if (contrast > 0) {
-        tctx.globalCompositeOperation = 'overlay';
-        tctx.globalAlpha = (contrast / 100) * 0.72;
-        tctx.drawImage(tctx.canvas, rx, ry, rw, rh, rx, ry, rw, rh);
-      } else {
-        tctx.fillStyle = '#808080';
-        tctx.globalAlpha = Math.min(1, Math.abs(contrast) / 100);
-        tctx.globalCompositeOperation = 'source-over';
-        tctx.fillRect(rx, ry, rw, rh);
+    const len = src.length;
+    const satInt = Math.round(sat * 256);
+
+    for (let i = 0; i < len; i += 4) {
+      let r = src[i];
+      let g = src[i + 1];
+      let b = src[i + 2];
+
+      if (hasLumaGain) {
+        const lIn = (54 * r + 183 * g + 19 * b) >> 8;
+        const gain = lumaGain[lIn];
+        if (gain !== 1024) {
+          r = (r * gain) >> 10;
+          g = (g * gain) >> 10;
+          b = (b * gain) >> 10;
+          if (r > 255) r = 255;
+          if (g > 255) g = 255;
+          if (b > 255) b = 255;
+        }
       }
-      tctx.restore();
+
+      r = lutR[r];
+      g = lutG[g];
+      b = lutB[b];
+
+      if (satInt !== 0) {
+        // Rec.709 Luminance with Vibrance + Highlight Chroma Protection
+        const y = (54 * r + 183 * g + 19 * b) >> 8;
+        let sFactor = 256 + satInt;
+        if (satInt > 0) {
+          const maxC = r > g ? (r > b ? r : b) : (g > b ? g : b);
+          const minC = r < g ? (r < b ? r : b) : (g < b ? g : b);
+          const chroma = maxC - minC;
+          const vibWeight = 256 - (chroma >> 1);
+          const hlProt = y > 190 ? ((255 - y) * 4) : 256;
+          const prot = (vibWeight * (hlProt < 256 ? hlProt : 256)) >> 8;
+          sFactor = 256 + ((satInt * prot) >> 8);
+        }
+        r = y + (((r - y) * sFactor) >> 8);
+        g = y + (((g - y) * sFactor) >> 8);
+        b = y + (((b - y) * sFactor) >> 8);
+      }
+
+      dst[i] = r;
+      dst[i + 1] = g;
+      dst[i + 2] = b;
+      dst[i + 3] = src[i + 3];
+    }
+  }
+
+  function getGradedPhotoCanvas(img) {
+    if (!img) return null;
+
+    const isNeutralTone = (
+      state.exposure === 0 &&
+      state.contrast === 0 &&
+      state.saturation === 0 &&
+      state.highlights === 0 &&
+      state.shadows === 0 &&
+      state.whites === 0 &&
+      state.blacks === 0 &&
+      state.warmth === 0
+    );
+
+    if (isNeutralTone) {
+      gradedPhotoCache.gradeKey = 'neutral';
+      return img;
     }
 
-    // 3. Saturation
-    if (saturation !== 0) {
-      tctx.save();
-      tctx.globalCompositeOperation = 'saturation';
-      if (saturation < 0) {
-        tctx.fillStyle = '#808080';
-        tctx.globalAlpha = Math.min(1, Math.abs(saturation) / 100);
-      } else {
-        tctx.fillStyle = '#ff0000';
-        tctx.globalAlpha = (saturation / 100) * 0.55;
-      }
-      tctx.fillRect(rx, ry, rw, rh);
-      tctx.restore();
+    const gradeKey = `${state.exposure}_${state.contrast}_${state.saturation}_${state.highlights}_${state.shadows}_${state.whites}_${state.blacks}_${state.warmth}`;
+
+    // 1. Initialize or refresh base pixel buffer when source image changes
+    if (gradedPhotoCache.img !== img || !gradedPhotoCache.baseData) {
+      const maxDim = 1350;
+      const scale = Math.min(1, maxDim / Math.max(img.width || 1, img.height || 1));
+      const w = Math.max(8, Math.round(img.width * scale));
+      const h = Math.max(8, Math.round(img.height * scale));
+
+      const outCanvas = gradedPhotoCache.outCanvas || document.createElement('canvas');
+      outCanvas.width = w;
+      outCanvas.height = h;
+      const octx = outCanvas.getContext('2d');
+      octx.clearRect(0, 0, w, h);
+      octx.drawImage(img, 0, 0, w, h);
+
+      const baseImgData = octx.getImageData(0, 0, w, h);
+      gradedPhotoCache.img = img;
+      gradedPhotoCache.w = w;
+      gradedPhotoCache.h = h;
+      gradedPhotoCache.baseData = new Uint8ClampedArray(baseImgData.data);
+      gradedPhotoCache.outImageData = baseImgData;
+      gradedPhotoCache.outCanvas = outCanvas;
+      gradedPhotoCache.gradeKey = '';
     }
+
+    // 2. Recompute Filmic Tone & Color Grading only when slider parameters change
+    if (gradedPhotoCache.gradeKey !== gradeKey) {
+      gradePixelsFilmic(gradedPhotoCache.baseData, gradedPhotoCache.outImageData.data);
+      const octx = gradedPhotoCache.outCanvas.getContext('2d');
+      octx.putImageData(gradedPhotoCache.outImageData, 0, 0);
+      gradedPhotoCache.gradeKey = gradeKey;
+    }
+
+    return gradedPhotoCache.outCanvas;
   }
 
   // --- Organic Film Grain Generator (Silver Halide Simulation) ---
@@ -1409,22 +1590,16 @@ document.addEventListener('DOMContentLoaded', () => {
     photoCanvas.height = rect.height;
     const pctx = photoCanvas.getContext('2d');
 
-    // 3-a. 写真の描画（露出、コントラスト、彩度、写真ぼかしフィルター付き）
+    // 3-a. 写真の描画（Lightroom/Instagram級のピクセル単位Filmicトーンマッピング＋写真ぼかし）
     pctx.save();
-    if (supportsCanvasFilter) {
-      const b = 100 + state.exposure;
-      const c = 100 + state.contrast;
-      const s = 100 + state.saturation;
-      pctx.filter = `brightness(${Math.max(0, b)}%) contrast(${Math.max(0, c)}%) saturate(${Math.max(0, s)}%)`;
-    }
-
     pctx.translate(state.imgX - rect.x, state.imgY - rect.y);
     pctx.rotate((state.imgRotation * Math.PI) / 180);
     pctx.scale(actualScale, actualScale);
 
+    const gradedSource = getGradedPhotoCanvas(state.image);
     const photoSource = state.photoBlur > 0
-      ? getBlurredCanvas(state.image, state.photoBlur * 1.5, 360, photoBlurCache)
-      : state.image;
+      ? getBlurredCanvas(gradedSource, state.photoBlur * 1.5, 360, photoBlurCache, gradedPhotoCache.gradeKey)
+      : gradedSource;
 
     pctx.drawImage(
       photoSource,
@@ -1435,7 +1610,7 @@ document.addEventListener('DOMContentLoaded', () => {
     );
     pctx.restore();
 
-    // 3-b. ポストエフェクト（グレイン、色温度、黒レベル、リソグラフ等）を適用
+    // 3-b. ポストエフェクト（リソグラフ、粒子グレイン、周辺減光ビネット）を適用
     applyEffectsToContext(pctx, 0, 0, rect.width, rect.height);
 
     // 3-c. ★超重要: destination-in で写真のアルファ形状（ピクセル領域）だけに完全マスク！
@@ -1470,115 +1645,26 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.restore();
   }
 
-  // --- Film & Tone Post-Effects (Applied Strictly to Photo Pixels) ---
+  // --- Film & Spatial Post-Effects (Risograph, Organic Film Grain, Vignette) ---
   function applyEffectsToContext(tctx, rx, ry, rw, rh) {
-    // 0. iOS Safari / WebKit Fallback for Exposure, Contrast, Saturation
-    if (!supportsCanvasFilter) {
-      applyBasicToneFallback(tctx, rx, ry, rw, rh, state.exposure, state.contrast, state.saturation);
-    }
-
     // A. Risograph Special Effect (2-Color Inks)
     if (state.isRisograph) {
       tctx.save();
       // 蛍光ピンクのハイライト・中間色
       tctx.fillStyle = '#ff1493';
-      tctx.globalAlpha = 0.30;
+      tctx.globalAlpha = 0.26;
       tctx.globalCompositeOperation = 'screen';
       tctx.fillRect(rx, ry, rw, rh);
 
       // ディープティール／ネイビーのシャドウインク
       tctx.fillStyle = '#004777';
-      tctx.globalAlpha = 0.35;
+      tctx.globalAlpha = 0.32;
       tctx.globalCompositeOperation = 'multiply';
       tctx.fillRect(rx, ry, rw, rh);
       tctx.restore();
     }
 
-    // B. Warmth (Color Temperature)
-    if (state.warmth !== 0) {
-      tctx.save();
-      if (state.warmth > 0) {
-        // Warm Orange/Amber glow
-        tctx.fillStyle = '#ff8800';
-        tctx.globalAlpha = (state.warmth / 100) * 0.35;
-      } else {
-        // Cool Cyan/Blue tone
-        tctx.fillStyle = '#00a8e8';
-        tctx.globalAlpha = (Math.abs(state.warmth) / 100) * 0.35;
-      }
-      tctx.globalCompositeOperation = 'soft-light';
-      tctx.fillRect(rx, ry, rw, rh);
-      tctx.restore();
-    }
-
-    // C. Highlights
-    if (state.highlights !== 0) {
-      tctx.save();
-      if (state.highlights > 0) {
-        tctx.fillStyle = '#ffffff';
-        tctx.globalAlpha = (state.highlights / 100) * 0.45;
-        tctx.globalCompositeOperation = 'soft-light';
-      } else {
-        tctx.fillStyle = '#000000';
-        tctx.globalAlpha = (Math.abs(state.highlights) / 100) * 0.35;
-        tctx.globalCompositeOperation = 'multiply';
-      }
-      tctx.fillRect(rx, ry, rw, rh);
-      tctx.restore();
-    }
-
-    // D. Shadows (Lift / Deepen)
-    if (state.shadows !== 0) {
-      tctx.save();
-      if (state.shadows > 0) {
-        tctx.fillStyle = '#dcdcdc';
-        tctx.globalAlpha = (state.shadows / 100) * 0.38;
-        tctx.globalCompositeOperation = 'screen';
-      } else {
-        tctx.fillStyle = '#000000';
-        tctx.globalAlpha = (Math.abs(state.shadows) / 100) * 0.45;
-        tctx.globalCompositeOperation = 'multiply';
-      }
-      tctx.fillRect(rx, ry, rw, rh);
-      tctx.restore();
-    }
-
-    // E. Whites (白レベル: ピーク白のブースト / 抑制)
-    if (state.whites !== 0) {
-      tctx.save();
-      if (state.whites > 0) {
-        tctx.fillStyle = '#ffffff';
-        tctx.globalAlpha = (state.whites / 100) * 0.42;
-        tctx.globalCompositeOperation = 'screen';
-      } else {
-        const dimVal = 255 - Math.round((Math.abs(state.whites) / 100) * 48);
-        tctx.fillStyle = `rgb(${dimVal}, ${dimVal}, ${dimVal})`;
-        tctx.globalCompositeOperation = 'multiply';
-      }
-      tctx.fillRect(rx, ry, rw, rh);
-      tctx.restore();
-    }
-
-    // F. Blacks (黒レベル: 最暗部のマット黒浮き / 引き締め)
-    if (state.blacks !== 0) {
-      tctx.save();
-      if (state.blacks > 0) {
-        // 海外映画・フィルム特有の美しい黒浮き（リフト）
-        const liftVal = Math.round((state.blacks / 100) * 60);
-        tctx.fillStyle = `rgb(${liftVal}, ${liftVal}, ${liftVal})`;
-        tctx.globalCompositeOperation = 'screen';
-      } else {
-        // 最暗部を漆黒に落とし込む
-        const crushAlpha = (Math.abs(state.blacks) / 100) * 0.5;
-        tctx.fillStyle = '#000000';
-        tctx.globalAlpha = crushAlpha;
-        tctx.globalCompositeOperation = 'multiply';
-      }
-      tctx.fillRect(rx, ry, rw, rh);
-      tctx.restore();
-    }
-
-    // G. Film Grain (Organic Silver Halide Grain)
+    // B. Film Grain (Organic Silver Halide Grain)
     if (state.grain > 0) {
       tctx.save();
       const pattern = getNoisePattern(state.grainSize || 2);
@@ -1600,7 +1686,7 @@ document.addEventListener('DOMContentLoaded', () => {
       tctx.restore();
     }
 
-    // H. Vignette (Peripheral Darkening)
+    // C. Vignette (Peripheral Darkening)
     if (state.vignette > 0) {
       tctx.save();
       const cx = rx + rw / 2;
@@ -1625,21 +1711,14 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.fillStyle = state.bgColor;
     ctx.fillRect(0, 0, W, H);
 
-    // Blurred image background (写真フィルター・ぼかしをiOS Safari含め全端末で完全反映)
+    // Blurred image background (Filmicトーン＆カラー調整済みの写真をそのまま背景ぼかしに反映)
     if (state.blurBg && state.image) {
       ctx.save();
 
-      // 1) Cross-browser Gaussian Box Blur via offscreen buffer
+      const gradedSource = getGradedPhotoCanvas(state.image);
       const bgSource = state.blurAmount > 0
-        ? getBlurredCanvas(state.image, state.blurAmount * 1.5, 260, bgBlurCache)
-        : state.image;
-
-      if (supportsCanvasFilter) {
-        const bgBright = Math.max(0, (100 + state.exposure) * 0.72);
-        const bgCont = Math.max(0, 100 + state.contrast);
-        const bgSat = Math.max(0, 100 + state.saturation);
-        ctx.filter = `brightness(${bgBright}%) contrast(${bgCont}%) saturate(${bgSat}%)`;
-      }
+        ? getBlurredCanvas(gradedSource, state.blurAmount * 1.5, 260, bgBlurCache, gradedPhotoCache.gradeKey)
+        : gradedSource;
 
       // Cover the entire 1080x1920 canvas
       const imgAspect = state.image.width / state.image.height;
@@ -1655,49 +1734,28 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.drawImage(bgSource, (W - drawW) / 2, (H - drawH) / 2, drawW, drawH);
       ctx.restore();
 
-      // iOS Safari / WebKit fallback for background brightness (0.72x) + exposure/contrast/saturation
-      if (!supportsCanvasFilter) {
-        ctx.save();
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
-        ctx.fillRect(0, 0, W, H);
-        ctx.restore();
-        applyBasicToneFallback(ctx, 0, 0, W, H, state.exposure, state.contrast, state.saturation);
-      }
+      // 背景用の控えめなトーンダウン (0.72x 相当)
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
 
-      // 2) 背景ぼかしにもリソグラフや色温度、黒レベルをブレンドして世界観を完全統一
+      // リソグラフ時は背景にもインク感を連動
       if (state.isRisograph) {
         ctx.save();
         ctx.fillStyle = '#ff1493';
-        ctx.globalAlpha = 0.22;
+        ctx.globalAlpha = 0.20;
         ctx.globalCompositeOperation = 'screen';
         ctx.fillRect(0, 0, W, H);
 
         ctx.fillStyle = '#004777';
-        ctx.globalAlpha = 0.28;
+        ctx.globalAlpha = 0.26;
         ctx.globalCompositeOperation = 'multiply';
         ctx.fillRect(0, 0, W, H);
         ctx.restore();
       }
 
-      if (state.warmth !== 0) {
-        ctx.save();
-        ctx.fillStyle = state.warmth > 0 ? '#ff8800' : '#00a8e8';
-        ctx.globalAlpha = (Math.abs(state.warmth) / 100) * 0.28;
-        ctx.globalCompositeOperation = 'soft-light';
-        ctx.fillRect(0, 0, W, H);
-        ctx.restore();
-      }
-
-      if (state.blacks > 0) {
-        ctx.save();
-        const liftVal = Math.round((state.blacks / 100) * 45);
-        ctx.fillStyle = `rgb(${liftVal}, ${liftVal}, ${liftVal})`;
-        ctx.globalCompositeOperation = 'screen';
-        ctx.fillRect(0, 0, W, H);
-        ctx.restore();
-      }
-
-      // 3) 背景用ダークビネット
+      // 背景用ダークビネット
       const vignette = ctx.createLinearGradient(0, 0, 0, H);
       vignette.addColorStop(0, 'rgba(0, 0, 0, 0.25)');
       vignette.addColorStop(0.5, 'rgba(0, 0, 0, 0.05)');
