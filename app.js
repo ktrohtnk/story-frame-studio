@@ -76,6 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
     fsTextTitle: 'FORM AND SPACE DESIGN',
     fsTextGrade: '2nd & 3rd grade',
     fsTitleWeight: 800,   // メインタイトルのウェイト (500, 700, 800, 900)
+    fsFontSize: 30,       // サンプルの正確なフォントサイズ (30px)
+    fsLetterSpacing: 0,   // 文字間トラッキング (0px)
     fsTitleColor: '#090405',
     fsGradeColor: '#ffffff',
     fsBorderSides: 'all', // 'all' (4辺すべて) | 'top-bottom' (上下) | 'top' (上辺)
@@ -141,6 +143,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const fsGradeInput = document.getElementById('fsGradeInput');
   const fsTitleWeightVal = document.getElementById('fsTitleWeightVal');
   const fsTitleWeightBadge = document.getElementById('fsTitleWeightBadge');
+  const fsFontSizeSlider = document.getElementById('fsFontSizeSlider');
+  const fsFontSizeVal = document.getElementById('fsFontSizeVal');
+  const fsSpacingSlider = document.getElementById('fsSpacingSlider');
+  const fsSpacingVal = document.getElementById('fsSpacingVal');
   const fsTitleColorPicker = document.getElementById('fsTitleColorPicker');
   const fsGradeColorPicker = document.getElementById('fsGradeColorPicker');
   const fsTodayDateBtn = document.getElementById('fsTodayDateBtn');
@@ -600,6 +606,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (fsGradeInput) fsGradeInput.value = state.fsTextGrade;
         if (fsTitleWeightVal) fsTitleWeightVal.textContent = FS_WEIGHT_LABELS[`${state.fsTitleWeight}`] || `${state.fsTitleWeight}`;
         if (fsTitleWeightBadge) fsTitleWeightBadge.textContent = `${FS_WEIGHT_LABELS[`${state.fsTitleWeight}`] || state.fsTitleWeight} (太字)`;
+        if (fsFontSizeSlider) fsFontSizeSlider.value = state.fsFontSize || 30;
+        if (fsFontSizeVal) fsFontSizeVal.textContent = (state.fsFontSize || 30) === 30 ? '30px (サンプル標準)' : `${state.fsFontSize}px`;
+        if (fsSpacingSlider) fsSpacingSlider.value = state.fsLetterSpacing || 0;
+        if (fsSpacingVal) fsSpacingVal.textContent = (state.fsLetterSpacing || 0) === 0 ? '0px (サンプル標準)' : `${state.fsLetterSpacing}px`;
         if (fsTitleColorPicker) fsTitleColorPicker.value = state.fsTitleColor;
         if (fsGradeColorPicker) fsGradeColorPicker.value = state.fsGradeColor;
         document.querySelectorAll('.fs-weight-btn').forEach(b => {
@@ -1435,7 +1445,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tctx.closePath();
   }
 
-  // --- FS_2&3 Procedural Vector Graphic Frame (動的文字 & 自由カラー) ---
+  // --- FS_2&3 Procedural Vector Graphic Frame (サンプルのサイズ・文字間を完全再現) ---
   function drawFS23VectorFrame(rect, W, H) {
     const padX = 43;
     const padY = 47;
@@ -1452,17 +1462,26 @@ document.addEventListener('DOMContentLoaded', () => {
     roundRectPath(ctx, padX, padY, innerW, innerH, radius);
     ctx.fill('evenodd');
 
-    // 2. タイポグラフィ描画ヘルパー (3層ウェイト構造: Medium 500 -> ExtraBold/Black 800 -> Regular 400)
+    // 2. タイポグラフィ描画ヘルパー (サンプルのフォントサイズ・文字間・ウェイトを忠実に再現)
     function renderFSTextLine(tctx, startX, baselineY) {
       tctx.save();
       tctx.textBaseline = 'middle';
       tctx.textAlign = 'left';
 
+      // 文字間 (letter-spacing)
+      const letterSpacing = (state.fsLetterSpacing || 0) + 'px';
+      if ('letterSpacing' in tctx) {
+        tctx.letterSpacing = letterSpacing;
+      }
+
+      const fontSize = state.fsFontSize || 30; // サンプル基準: 30px
+      const subFontSize = Math.round(fontSize * 0.9); // サブテキスト: 27px
+      const titleWeight = state.fsTitleWeight || 800;
+
       let curX = startX;
       let prefix = (state.fsTextPrefix !== undefined ? state.fsTextPrefix : 'FDS/').trim();
       let title = (state.fsTextTitle !== undefined ? state.fsTextTitle : 'FORM AND SPACE DESIGN').trim();
       const grade = (state.fsTextGrade !== undefined ? state.fsTextGrade : '2nd & 3rd grade').trim();
-      const titleWeight = state.fsTitleWeight || 800;
 
       // スマートフォールバック: prefixが空でtitleにスラッシュがある場合、自動分離してウェイトを適用
       if (!prefix && title.includes('/')) {
@@ -1471,28 +1490,28 @@ document.addEventListener('DOMContentLoaded', () => {
         title = title.substring(slashIdx + 1).trim();
       }
 
-      // 1. 略称 / プレフィックス (Medium 500)
+      // 1. 略称 / プレフィックス (SemiBold 600 - サンプル仕様)
       if (prefix) {
         tctx.fillStyle = state.fsTitleColor || '#090405';
-        tctx.font = '500 18.5px "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        tctx.font = `600 ${fontSize}px "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
         const displayPrefix = prefix + ' ';
         tctx.fillText(displayPrefix, curX, baselineY);
-        curX += tctx.measureText(displayPrefix).width;
+        curX += tctx.measureText(displayPrefix).width + 6;
       }
 
-      // 2. メインタイトル (ExtraBold / Black 800-900 ★太字アクセント)
+      // 2. メインタイトル (ExtraBold / Black 800-900 ★太字アクセント - サンプル仕様)
       if (title) {
         tctx.fillStyle = state.fsTitleColor || '#090405';
-        tctx.font = `${titleWeight} 18.5px "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+        tctx.font = `${titleWeight} ${fontSize}px "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
         tctx.fillText(title, curX, baselineY);
         curX += tctx.measureText(title).width;
       }
 
-      // 3. サブテキスト / 学年情報 (Regular 400 - 白またはアクセント色)
+      // 3. サブテキスト / 学年情報 (Regular 400 - 白文字 - サンプル仕様)
       if (grade) {
-        curX += 26; // メインタイトルと学年の間の視覚的マージン
+        curX += 20; // メインタイトルと学年の間の視覚的マージン (実測: 20px)
         tctx.fillStyle = state.fsGradeColor || '#ffffff';
-        tctx.font = '400 17.5px "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        tctx.font = `400 ${subFontSize}px "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
         tctx.fillText(grade, curX, baselineY);
       }
       tctx.restore();
@@ -1500,33 +1519,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const sides = state.fsBorderSides || 'all';
 
-    // A. 上辺 (Top): 水平配置
-    renderFSTextLine(ctx, 48, 23.5);
+    // A. 上辺 (Top): X=56px, Y=24.5px (実測値)
+    renderFSTextLine(ctx, 56, 24.5);
 
-    // B. 下辺 (Bottom): 上下反転（180度回転）
+    // B. 下辺 (Bottom): 180度反転, X=43px, Y=24.5px (実測値)
     if (sides === 'all' || sides === 'top-bottom') {
       ctx.save();
       ctx.translate(W, H);
       ctx.rotate(Math.PI);
-      renderFSTextLine(ctx, 48, 23.5);
+      renderFSTextLine(ctx, 43, 24.5);
       ctx.restore();
     }
 
-    // C. 右辺 (Right): 時計回り90度回転
+    // C. 右辺 (Right): 時計回り90度回転, start=334px, Y=21.5px (実測値)
     if (sides === 'all') {
       ctx.save();
       ctx.translate(W, 0);
       ctx.rotate(Math.PI / 2);
-      renderFSTextLine(ctx, 332, 21.5);
+      renderFSTextLine(ctx, 334, 21.5);
       ctx.restore();
     }
 
-    // D. 左辺 (Left): 反時計回り90度回転 (-90度)
+    // D. 左辺 (Left): 反時計回り90度回転 (-90度), start=364px, Y=21.5px (実測値)
     if (sides === 'all') {
       ctx.save();
       ctx.translate(0, H);
       ctx.rotate(-Math.PI / 2);
-      renderFSTextLine(ctx, 800, 21.5);
+      renderFSTextLine(ctx, 364, 21.5);
       ctx.restore();
     }
 
@@ -2129,6 +2148,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  if (fsFontSizeSlider) {
+    fsFontSizeSlider.addEventListener('input', (e) => {
+      state.fsFontSize = parseInt(e.target.value, 10);
+      if (fsFontSizeVal) fsFontSizeVal.textContent = state.fsFontSize === 30 ? '30px (サンプル標準)' : `${state.fsFontSize}px`;
+      render();
+    });
+  }
+
+  if (fsSpacingSlider) {
+    fsSpacingSlider.addEventListener('input', (e) => {
+      state.fsLetterSpacing = parseFloat(e.target.value);
+      if (fsSpacingVal) fsSpacingVal.textContent = state.fsLetterSpacing === 0 ? '0px (サンプル標準)' : `${state.fsLetterSpacing}px`;
+      render();
+    });
+  }
+
   document.querySelectorAll('.fs-sides-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -2145,6 +2180,8 @@ document.addEventListener('DOMContentLoaded', () => {
       state.fsTextTitle = 'FORM AND SPACE DESIGN';
       state.fsTextGrade = '2nd & 3rd grade';
       state.fsTitleWeight = 800;
+      state.fsFontSize = 30;
+      state.fsLetterSpacing = 0;
       state.fsTitleColor = '#090405';
       state.fsGradeColor = '#ffffff';
       state.fsBorderSides = 'all';
@@ -2154,6 +2191,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (fsGradeInput) fsGradeInput.value = state.fsTextGrade;
       if (fsTitleWeightVal) fsTitleWeightVal.textContent = FS_WEIGHT_LABELS['800'];
       if (fsTitleWeightBadge) fsTitleWeightBadge.textContent = 'ExtraBold (800) (太字)';
+      if (fsFontSizeSlider) fsFontSizeSlider.value = 30;
+      if (fsFontSizeVal) fsFontSizeVal.textContent = '30px (サンプル標準)';
+      if (fsSpacingSlider) fsSpacingSlider.value = 0;
+      if (fsSpacingVal) fsSpacingVal.textContent = '0px (サンプル標準)';
       if (fsTitleColorPicker) fsTitleColorPicker.value = state.fsTitleColor;
       if (fsGradeColorPicker) fsGradeColorPicker.value = state.fsGradeColor;
 
