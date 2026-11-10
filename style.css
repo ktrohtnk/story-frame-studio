@@ -5,21 +5,21 @@
    ======================================================== */
 
 :root {
-  /* --- Base Palette: Off-white, Warm Gray, Charcoal --- */
-  --bg-workspace: #f3f1ec;         /* Studio drafting table / gallery linen */
-  --bg-surface: #fcfbf9;           /* Clean warm off-white paper */
-  --bg-card: #f6f5f0;              /* Subtle card surface */
-  --bg-hover: #edeae1;             /* Warm tactile hover */
-  --bg-muted: #e5e2d6;             /* Inactive well & slider track */
+  /* --- Base Palette: Studio Neutral Gray, Off-white, Charcoal --- */
+  --bg-workspace: #e4e6ea;         /* Studio architectural neutral gray (replaces cream) */
+  --bg-surface: #ffffff;           /* Clean crisp paper */
+  --bg-card: #f4f5f7;              /* Subtle neutral card surface */
+  --bg-hover: #eaebee;             /* Clean neutral hover */
+  --bg-muted: #dcdee2;             /* Neutral well & slider track */
   --bg-input: #ffffff;             /* Crisp clean input ground */
 
   --ink-primary: #141416;          /* Deep ink charcoal for maximum editorial contrast */
-  --ink-secondary: #4a4944;        /* Editorial body & subtitles */
-  --ink-muted: #828078;            /* Micro-labels & parameters */
-  --ink-faint: #b3b0a6;            /* Subtle borders & non-obtrusive metadata */
+  --ink-secondary: #4e5156;        /* Editorial body & subtitles */
+  --ink-muted: #7e828a;            /* Micro-labels & parameters */
+  --ink-faint: #afb3bb;            /* Subtle borders & non-obtrusive metadata */
 
-  --border-color: #e2dfd5;         /* Crisp 1px hairline border */
-  --border-subtle: #edeae2;        /* Ultra-light hairline */
+  --border-color: #dcdfe4;         /* Crisp 1px hairline border */
+  --border-subtle: #e8eaee;        /* Ultra-light hairline */
   --border-focus: #141416;         /* High-contrast active hairline */
 
   /* --- Accent Palette (Semantic, Bold, Disciplined) --- */
@@ -439,7 +439,7 @@ body {
 .drop-prompt {
   position: absolute;
   inset: 0;
-  background: rgba(247, 246, 242, 0.96);
+  background: rgba(244, 245, 248, 0.96);
   backdrop-filter: blur(8px);
   display: flex;
   flex-direction: column;
@@ -772,7 +772,7 @@ input[type="range"]::-webkit-slider-thumb:active {
   width: 40px;
   height: 58px;
   border-radius: 4px;
-  background-color: #e5e2d6;
+  background-color: var(--bg-muted);
   position: relative;
   box-shadow: inset 0 0 0 1px rgba(20, 20, 22, 0.08);
 }
