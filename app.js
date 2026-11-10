@@ -206,6 +206,188 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // --- Filter Preset Definitions ---
+  const BUILTIN_XMP_DATA = {
+    kodak_gold: {
+      name: 'Kodak Gold 100',
+      xml: `<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe XMP Core 7.0-c000 1.000000, 0000/00/00-00:00:00        ">
+ <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <rdf:Description rdf:about=""
+    xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"
+   crs:PresetType="Normal"
+   crs:Version="18.7"
+   crs:Contrast2012="0"
+   crs:Highlights2012="-50"
+   crs:Shadows2012="+30"
+   crs:Whites2012="-45"
+   crs:Blacks2012="+15"
+   crs:Saturation="-5"
+   crs:HueAdjustmentGreen="+10"
+   crs:HueAdjustmentAqua="+10"
+   crs:HueAdjustmentBlue="-5"
+   crs:HueAdjustmentPurple="+20"
+   crs:HueAdjustmentMagenta="+20"
+   crs:SaturationAdjustmentRed="-30"
+   crs:SaturationAdjustmentOrange="-8"
+   crs:SaturationAdjustmentYellow="-15"
+   crs:SaturationAdjustmentGreen="-50"
+   crs:SaturationAdjustmentAqua="-50"
+   crs:SaturationAdjustmentBlue="-30"
+   crs:SaturationAdjustmentPurple="-50"
+   crs:SaturationAdjustmentMagenta="-40"
+   crs:LuminanceAdjustmentRed="+5"
+   crs:LuminanceAdjustmentOrange="-4"
+   crs:LuminanceAdjustmentYellow="+10"
+   crs:LuminanceAdjustmentGreen="-5"
+   crs:LuminanceAdjustmentAqua="+10"
+   crs:LuminanceAdjustmentBlue="-15"
+   crs:LuminanceAdjustmentPurple="+20"
+   crs:LuminanceAdjustmentMagenta="+20"
+   crs:GrainAmount="15"
+   crs:GrainSize="40"
+   crs:GrainFrequency="45"
+   crs:ShadowTint="-2"
+   crs:RedHue="+18"
+   crs:RedSaturation="+20"
+   crs:GreenHue="+35"
+   crs:GreenSaturation="0"
+   crs:BlueHue="-5"
+   crs:BlueSaturation="+25"
+   crs:CameraProfile="Kodak Gold 100 - F">
+   <crs:ToneCurvePV2012>
+    <rdf:Seq>
+     <rdf:li>0, 0</rdf:li>
+     <rdf:li>76, 75</rdf:li>
+     <rdf:li>186, 187</rdf:li>
+     <rdf:li>255, 250</rdf:li>
+    </rdf:Seq>
+   </crs:ToneCurvePV2012>
+   <crs:ToneCurvePV2012Red>
+    <rdf:Seq>
+     <rdf:li>0, 0</rdf:li>
+     <rdf:li>30, 11</rdf:li>
+     <rdf:li>71, 51</rdf:li>
+     <rdf:li>119, 122</rdf:li>
+     <rdf:li>182, 196</rdf:li>
+     <rdf:li>255, 255</rdf:li>
+    </rdf:Seq>
+   </crs:ToneCurvePV2012Red>
+   <crs:ToneCurvePV2012Green>
+    <rdf:Seq>
+     <rdf:li>0, 0</rdf:li>
+     <rdf:li>28, 9</rdf:li>
+     <rdf:li>120, 124</rdf:li>
+     <rdf:li>181, 198</rdf:li>
+     <rdf:li>255, 255</rdf:li>
+    </rdf:Seq>
+   </crs:ToneCurvePV2012Green>
+   <crs:ToneCurvePV2012Blue>
+    <rdf:Seq>
+     <rdf:li>0, 0</rdf:li>
+     <rdf:li>24, 11</rdf:li>
+     <rdf:li>83, 70</rdf:li>
+     <rdf:li>119, 122</rdf:li>
+     <rdf:li>183, 200</rdf:li>
+     <rdf:li>255, 255</rdf:li>
+    </rdf:Seq>
+   </crs:ToneCurvePV2012Blue>
+  </rdf:Description>
+ </rdf:RDF>
+</x:xmpmeta>`
+    },
+    original_xmp: {
+      name: 'Original XMP',
+      xml: `<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe XMP Core 7.0-c000 1.000000, 0000/00/00-00:00:00        ">
+ <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <rdf:Description rdf:about=""
+    xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"
+   crs:PresetType="Normal"
+   crs:Version="18.7"
+   crs:Exposure2012="+0.70"
+   crs:Contrast2012="-31"
+   crs:Highlights2012="-55"
+   crs:Shadows2012="+40"
+   crs:Whites2012="-50"
+   crs:Blacks2012="+25"
+   crs:Saturation="-5"
+   crs:HueAdjustmentGreen="+10"
+   crs:HueAdjustmentAqua="+10"
+   crs:HueAdjustmentBlue="-5"
+   crs:HueAdjustmentPurple="+20"
+   crs:HueAdjustmentMagenta="+20"
+   crs:SaturationAdjustmentRed="-30"
+   crs:SaturationAdjustmentOrange="-8"
+   crs:SaturationAdjustmentYellow="-15"
+   crs:SaturationAdjustmentGreen="-50"
+   crs:SaturationAdjustmentAqua="-50"
+   crs:SaturationAdjustmentBlue="-30"
+   crs:SaturationAdjustmentPurple="-50"
+   crs:SaturationAdjustmentMagenta="-40"
+   crs:LuminanceAdjustmentRed="+5"
+   crs:LuminanceAdjustmentOrange="-4"
+   crs:LuminanceAdjustmentYellow="+10"
+   crs:LuminanceAdjustmentGreen="-5"
+   crs:LuminanceAdjustmentAqua="+10"
+   crs:LuminanceAdjustmentBlue="-15"
+   crs:LuminanceAdjustmentPurple="+20"
+   crs:LuminanceAdjustmentMagenta="+20"
+   crs:SplitToningShadowHue="186"
+   crs:SplitToningShadowSaturation="26"
+   crs:SplitToningHighlightHue="0"
+   crs:SplitToningHighlightSaturation="0"
+   crs:SplitToningBalance="0"
+   crs:GrainAmount="5"
+   crs:GrainSize="40"
+   crs:GrainFrequency="45"
+   crs:ShadowTint="-2"
+   crs:RedHue="+18"
+   crs:RedSaturation="+20"
+   crs:GreenHue="+35"
+   crs:GreenSaturation="0"
+   crs:BlueHue="-5"
+   crs:BlueSaturation="+25">
+   <crs:ToneCurvePV2012>
+    <rdf:Seq>
+     <rdf:li>0, 0</rdf:li>
+     <rdf:li>76, 75</rdf:li>
+     <rdf:li>186, 187</rdf:li>
+     <rdf:li>255, 255</rdf:li>
+    </rdf:Seq>
+   </crs:ToneCurvePV2012>
+   <crs:ToneCurvePV2012Red>
+    <rdf:Seq>
+     <rdf:li>0, 0</rdf:li>
+     <rdf:li>30, 11</rdf:li>
+     <rdf:li>71, 51</rdf:li>
+     <rdf:li>119, 122</rdf:li>
+     <rdf:li>182, 196</rdf:li>
+     <rdf:li>255, 255</rdf:li>
+    </rdf:Seq>
+   </crs:ToneCurvePV2012Red>
+   <crs:ToneCurvePV2012Green>
+    <rdf:Seq>
+     <rdf:li>0, 0</rdf:li>
+     <rdf:li>28, 9</rdf:li>
+     <rdf:li>120, 124</rdf:li>
+     <rdf:li>181, 198</rdf:li>
+     <rdf:li>255, 255</rdf:li>
+    </rdf:Seq>
+   </crs:ToneCurvePV2012Green>
+   <crs:ToneCurvePV2012Blue>
+    <rdf:Seq>
+     <rdf:li>0, 0</rdf:li>
+     <rdf:li>24, 11</rdf:li>
+     <rdf:li>83, 70</rdf:li>
+     <rdf:li>119, 122</rdf:li>
+     <rdf:li>183, 200</rdf:li>
+     <rdf:li>255, 255</rdf:li>
+    </rdf:Seq>
+   </crs:ToneCurvePV2012Blue>
+  </rdf:Description>
+ </rdf:RDF>
+</x:xmpmeta>`
+    }
+  };
+
   const FILTER_PRESETS = {
     normal: {
       exposure: 0,
@@ -2508,6 +2690,21 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Filter Presets & Tone Adjustments ---
   function applyFilterPreset(filterName) {
     state.filterPreset = filterName;
+
+    // Built-in XMP Presets (Kodak Gold 100, Original XMP)
+    if (BUILTIN_XMP_DATA && BUILTIN_XMP_DATA[filterName]) {
+      const presetData = BUILTIN_XMP_DATA[filterName];
+      parseAndApplyXMP(presetData.xml, presetData.name);
+      state.filterPreset = filterName;
+
+      document.querySelectorAll('.filter-card').forEach(c => {
+        c.classList.toggle('active', c.dataset.filter === filterName);
+      });
+
+      render();
+      return;
+    }
+
     const p = FILTER_PRESETS[filterName];
     if (!p) return;
 
