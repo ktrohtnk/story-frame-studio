@@ -150,6 +150,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const imageUpload = document.getElementById('imageUpload');
   const changeImageBtn = document.getElementById('changeImageBtn');
+  const headerPhotoUpload = document.getElementById('headerPhotoUpload');
+  const floatingPhotoUpload = document.getElementById('floatingPhotoUpload');
   const fitImageBtn = document.getElementById('fitImageBtn');
   const fillImageBtn = document.getElementById('fillImageBtn');
   const overlayUpload = document.getElementById('overlayUpload');
@@ -765,6 +767,38 @@ document.addEventListener('DOMContentLoaded', () => {
   changeImageBtn.addEventListener('change', (e) => {
     if (e.target.files && e.target.files[0]) {
       loadImageFromFile(e.target.files[0]);
+    }
+  });
+
+  if (headerPhotoUpload) {
+    headerPhotoUpload.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        loadImageFromFile(e.target.files[0]);
+      }
+    });
+  }
+
+  if (floatingPhotoUpload) {
+    floatingPhotoUpload.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        loadImageFromFile(e.target.files[0]);
+      }
+    });
+  }
+
+  // --- Clipboard Image Paste (Cmd+V / Ctrl+V) ---
+  window.addEventListener('paste', (e) => {
+    if (e.clipboardData && e.clipboardData.items) {
+      const items = e.clipboardData.items;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          const file = items[i].getAsFile();
+          if (file) {
+            loadImageFromFile(file);
+            break;
+          }
+        }
+      }
     }
   });
 

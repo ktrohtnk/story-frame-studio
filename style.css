@@ -669,11 +669,49 @@ input[type="range"]::-webkit-slider-thumb:hover {
   border-color: rgba(255, 255, 255, 0.25);
 }
 
-.chip-btn.active {
-  background: rgba(27, 185, 238, 0.15);
-  color: #1bb9ee;
-  border-color: #1bb9ee;
+/* Floating Photo Change Button on Preview Canvas */
+.floating-photo-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 5;
+  background: rgba(18, 18, 20, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 7px 12px;
+  border-radius: 20px;
+  font-size: 12px;
   font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.floating-photo-btn:hover {
+  background: rgba(255, 71, 133, 0.9);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 6px 18px rgba(255, 71, 133, 0.35);
+}
+
+.floating-photo-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.btn-large-change-photo {
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 8px;
 }
 
 /* Date Action Buttons & Format Chips */

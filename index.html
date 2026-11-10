@@ -18,6 +18,12 @@
         <h1>StoryFrame<span class="logo-studio"> Studio</span></h1>
       </div>
       <div class="header-actions">
+        <label for="headerPhotoUpload" class="btn btn-accent" title="写真を選択 / 変更">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span class="btn-label-long">写真を選択 / 変更</span>
+          <span class="btn-label-short">写真変更</span>
+        </label>
+        <input type="file" id="headerPhotoUpload" accept="image/*" hidden>
         <button id="resetBtn" class="btn btn-secondary">リセット</button>
         <button id="downloadBtn" class="btn btn-primary">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -34,6 +40,13 @@
         <div class="preview-container">
           <div class="canvas-wrapper" id="canvasWrapper">
             <canvas id="mainCanvas" width="1080" height="1920"></canvas>
+            
+            <!-- Floating Change Photo Button (Always Accessible on Preview) -->
+            <label for="floatingPhotoUpload" class="floating-photo-btn" title="写真を選択 / 変更">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              <span>写真変更</span>
+            </label>
+            <input type="file" id="floatingPhotoUpload" accept="image/*" hidden>
             
             <!-- Drag & Drop Overlay when empty -->
             <div id="dropZonePrompt" class="drop-prompt">
@@ -271,16 +284,20 @@
 
           <!-- TAB 2: IMAGE ADJUSTMENT -->
           <div class="tab-pane" id="pane-image">
-            <h2 class="pane-title">写真の調整</h2>
+            <h2 class="pane-title">写真の選択・配置</h2>
             
             <div class="control-group">
+              <label for="changeImageBtn" class="btn btn-accent full-width btn-large-change-photo">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <span>写真を選択 / 変更する</span>
+              </label>
+              <input type="file" id="changeImageBtn" accept="image/*" hidden>
+            </div>
+
+            <div class="control-group" style="margin-top: 10px;">
               <div class="btn-group-row">
-                <label for="changeImageBtn" class="btn btn-secondary flex-1">
-                  別の写真に変更
-                </label>
-                <input type="file" id="changeImageBtn" accept="image/*" hidden>
-                <button id="fitImageBtn" class="btn btn-secondary" title="枠にフィット">フィット</button>
-                <button id="fillImageBtn" class="btn btn-secondary" title="枠を埋める">全体</button>
+                <button id="fitImageBtn" class="btn btn-secondary flex-1" title="枠にフィット">枠にフィット</button>
+                <button id="fillImageBtn" class="btn btn-secondary flex-1" title="枠を埋める">全体を埋める</button>
               </div>
             </div>
 
