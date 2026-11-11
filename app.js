@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Preset & Frames
     activeTab: 'presets',
-    preset: 'polaroid',
+    preset: 'fs_2_3',
     customOverlay: null,
 
     // Filters & Color Adjustments
@@ -3859,7 +3859,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Reset All ---
   resetBtn.addEventListener('click', () => {
     if (confirm('すべての設定を初期状態にリセットしますか？')) {
-      applyPreset('polaroid');
+      applyPreset('fs_2_3');
       applyFilterPreset('normal');
       resetImageTransform();
       render();
@@ -4111,9 +4111,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Boot: Initialize immediately, then re-render when fonts load ---
   updateCanvasWrapperSize();
-  createDefaultSampleImage();
-  applyPreset('polaroid');
+  applyPreset('fs_2_3');
   applyFilterPreset('normal');
+  createDefaultSampleImage();
 
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(() => {
