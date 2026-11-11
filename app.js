@@ -3885,14 +3885,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (availW <= 0 || availH <= 0) return;
 
     const targetRatio = 9 / 16;
-    let w = availH * targetRatio;
-    let h = availH;
+    let h = Math.floor(availH);
+    let w = Math.round(h * targetRatio);
     if (w > availW) {
-      w = availW;
-      h = availW / targetRatio;
+      w = Math.floor(availW);
+      h = Math.round(w / targetRatio);
     }
-    canvasWrapper.style.width = `${Math.floor(w)}px`;
-    canvasWrapper.style.height = `${Math.floor(h)}px`;
+    canvasWrapper.style.width = `${w}px`;
+    canvasWrapper.style.height = `${h}px`;
   }
 
   if (window.ResizeObserver && previewContainer) {
